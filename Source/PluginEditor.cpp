@@ -8,6 +8,7 @@ PDLBRDAudioProcessorEditor::PDLBRDAudioProcessorEditor(PDLBRDAudioProcessor& p)
     juce::Colour distColour(0xffff6b6b);   // Red
     juce::Colour ampColour(0xffffd93d);    // Yellow/Gold
     juce::Colour modColour(0xffbb86fc);    // Purple
+    juce::Colour revColour(0xff6bcf7f);    // Green
 
     // === COMPRESSOR ===
     setupSlider(compThresholdSlider, compThresholdLabel, "Thresh", compColour);
@@ -65,6 +66,18 @@ PDLBRDAudioProcessorEditor::PDLBRDAudioProcessorEditor(PDLBRDAudioProcessor& p)
     modBypassButton.setColour(juce::ToggleButton::textColourId, juce::Colours::white);
     addAndMakeVisible(modBypassButton);
 
+    // === REVERB ===
+    setupSlider(revDecaySlider, revDecayLabel, "Decay", revColour);
+    setupSlider(revToneSlider, revToneLabel, "Tone", revColour);
+    setupSlider(revBlendSlider, revBlendLabel, "Blend", revColour);
+    setupComboBox(revTypeBox, revTypeLabel, "Type", revColour);
+    revTypeBox.addItem("Spring", 1);
+    revTypeBox.addItem("Plate", 2);
+    revTypeBox.addItem("Hall", 3);
+    revBypassButton.setButtonText("Bypass");
+    revBypassButton.setColour(juce::ToggleButton::textColourId, juce::Colours::white);
+    addAndMakeVisible(revBypassButton);
+
     // Create attachments
     auto& apvts = audioProcessor.getAPVTS();
 
@@ -97,7 +110,13 @@ PDLBRDAudioProcessorEditor::PDLBRDAudioProcessorEditor(PDLBRDAudioProcessor& p)
     modTypeAttachment = std::make_unique<juce::AudioProcessorValueTreeState::ComboBoxAttachment>(apvts, "modType", modTypeBox);
     modBypassAttachment = std::make_unique<juce::AudioProcessorValueTreeState::ButtonAttachment>(apvts, "modBypass", modBypassButton);
 
-    setSize(800, 820);
+    revDecayAttachment = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(apvts, "revDecay", revDecaySlider);
+    revToneAttachment = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(apvts, "revTone", revToneSlider);
+    revBlendAttachment = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(apvts, "revBlend", revBlendSlider);
+    revTypeAttachment = std::make_unique<juce::AudioProcessorValueTreeState::ComboBoxAttachment>(apvts, "revType", revTypeBox);
+    revBypassAttachment = std::make_unique<juce::AudioProcessorValueTreeState::ButtonAttachment>(apvts, "revBypass", revBypassButton);
+
+    setSize(800, 968);
 }
 
 PDLBRDAudioProcessorEditor::~PDLBRDAudioProcessorEditor() {}
@@ -177,6 +196,13 @@ void PDLBRDAudioProcessorEditor::paint(juce::Graphics& g)
     g.fillRoundedRectangle(10.0f, (float)sectionY, getWidth() - 20.0f, (float)sectionHeight, 5.0f);
     g.setColour(juce::Colour(0xffbb86fc));
     g.drawText("MODULATION", 18, sectionY + 5, 120, 16, juce::Justification::left);
+
+    // Reverb
+    sectionY += sectionHeight + 8;
+    g.setColour(juce::Colour(0xff16213e));
+    g.fillRoundedRectangle(10.0f, (float)sectionY, getWidth() - 20.0f, (float)sectionHeight, 5.0f);
+    g.setColour(juce::Colour(0xff6bcf7f));
+    g.drawText("REVERB", 18, sectionY + 5, 120, 16, juce::Justification::left);
 }
 
 void PDLBRDAudioProcessorEditor::resized()
@@ -261,4 +287,21 @@ void PDLBRDAudioProcessorEditor::resized()
     modTypeBox.setBounds(x, y + labelHeight + 12, 80, 22);
     x += 95;
     modBypassButton.setBounds(x, y + 30, 65, 20);
+
+    // Reverb row
+    y += sectionHeight + 8;
+    x = 18;
+    revDecayLabel.setBounds(x, y, knobSize, labelHeight);
+    revDecaySlider.setBounds(x, y + labelHeight, knobSize, knobSize);
+    x += spacing;
+    revToneLabel.setBounds(x, y, knobSize, labelHeight);
+    revToneSlider.setBounds(x, y + labelHeight, knobSize, knobSize);
+    x += spacing;
+    revBlendLabel.setBounds(x, y, knobSize, labelHeight);
+    revBlendSlider.setBounds(x, y + labelHeight, knobSize, knobSize);
+    x += spacing;
+    revTypeLabel.setBounds(x, y, 80, labelHeight);
+    revTypeBox.setBounds(x, y + labelHeight + 12, 80, 22);
+    x += 95;
+    revBypassButton.setBounds(x, y + 30, 65, 20);
 }

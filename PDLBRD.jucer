@@ -41,6 +41,10 @@
               file="Source/DSP/Modulation.cpp"/>
         <FILE id="MODH" name="Modulation.h" compile="0" resource="0"
               file="Source/DSP/Modulation.h"/>
+        <FILE id="REVCPP" name="Reverb.cpp" compile="1" resource="0"
+              file="Source/DSP/Reverb.cpp"/>
+        <FILE id="REVH" name="Reverb.h" compile="0" resource="0"
+              file="Source/DSP/Reverb.h"/>
       </GROUP>
     </GROUP>
   </MAINGROUP>

@@ -39,6 +39,13 @@ PDLBRDAudioProcessor::PDLBRDAudioProcessor()
     modBlend = apvts.getRawParameterValue("modBlend");
     modType = apvts.getRawParameterValue("modType");
     modBypass = apvts.getRawParameterValue("modBypass");
+
+    // Reverb
+    revDecay = apvts.getRawParameterValue("revDecay");
+    revTone = apvts.getRawParameterValue("revTone");
+    revBlend = apvts.getRawParameterValue("revBlend");
+    revType = apvts.getRawParameterValue("revType");
+    revBypass = apvts.getRawParameterValue("revBypass");
 }
 
 PDLBRDAudioProcessor::~PDLBRDAudioProcessor() {}
@@ -144,6 +151,25 @@ juce::AudioProcessorValueTreeState::ParameterLayout PDLBRDAudioProcessor::create
     params.push_back(std::make_unique<juce::AudioParameterBool>(
         juce::ParameterID("modBypass", 1), "Mod Bypass", false));
 
+    // === REVERB ===
+    params.push_back(std::make_unique<juce::AudioParameterFloat>(
+        juce::ParameterID("revDecay", 1), "Rev Decay",
+        juce::NormalisableRange<float>(0.0f, 100.0f, 1.0f), 50.0f,
+        juce::AudioParameterFloatAttributes().withLabel("%")));
+    params.push_back(std::make_unique<juce::AudioParameterFloat>(
+        juce::ParameterID("revTone", 1), "Rev Tone",
+        juce::NormalisableRange<float>(0.0f, 100.0f, 1.0f), 50.0f,
+        juce::AudioParameterFloatAttributes().withLabel("%")));
+    params.push_back(std::make_unique<juce::AudioParameterFloat>(
+        juce::ParameterID("revBlend", 1), "Rev Blend",
+        juce::NormalisableRange<float>(0.0f, 100.0f, 1.0f), 30.0f,
+        juce::AudioParameterFloatAttributes().withLabel("%")));
+    params.push_back(std::make_unique<juce::AudioParameterChoice>(
+        juce::ParameterID("revType", 1), "Rev Type",
+        juce::StringArray{ "Spring", "Plate", "Hall" }, 0));
+    params.push_back(std::make_unique<juce::AudioParameterBool>(
+        juce::ParameterID("revBypass", 1), "Rev Bypass", false));
+
     return { params.begin(), params.end() };
 }
 
@@ -164,6 +190,7 @@ void PDLBRDAudioProcessor::prepareToPlay(double sampleRate, int samplesPerBlock)
     distortion.prepare(sampleRate, samplesPerBlock);
     ampSim.prepare(sampleRate, samplesPerBlock);
     modulation.prepare(sampleRate, samplesPerBlock);
+    reverb.prepare(sampleRate, samplesPerBlock);
 }
 
 void PDLBRDAudioProcessor::releaseResources()
@@ -172,6 +199,7 @@ void PDLBRDAudioProcessor::releaseResources()
     distortion.reset();
     ampSim.reset();
     modulation.reset();
+    reverb.reset();
 }
 
 bool PDLBRDAudioProcessor::isBusesLayoutSupported(const BusesLayout& layouts) const
@@ -227,11 +255,19 @@ void PDLBRDAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce::
     modulation.setType(static_cast<int>(modType->load()));
     modulation.setBypass(modBypass->load() > 0.5f);
 
-    // Signal chain: Compressor -> Distortion -> Amp Sim -> Modulation
+    // Update reverb
+    reverb.setDecay(revDecay->load());
+    reverb.setTone(revTone->load());
+    reverb.setBlend(revBlend->load());
+    reverb.setType(static_cast<int>(revType->load()));
+    reverb.setBypass(revBypass->load() > 0.5f);
+
+    // Signal chain: Compressor -> Distortion -> Amp Sim -> Modulation -> Reverb
     compressor.process(buffer);
     distortion.process(buffer);
     ampSim.process(buffer);
     modulation.process(buffer);
+    reverb.process(buffer);
 }
 
 void PDLBRDAudioProcessor::getStateInformation(juce::MemoryBlock& destData)

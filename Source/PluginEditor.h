@@ -42,6 +42,12 @@ private:
     juce::ToggleButton modBypassButton;
     juce::Label modRateLabel, modDepthLabel, modBlendLabel, modTypeLabel;
 
+    // Reverb
+    juce::Slider revDecaySlider, revToneSlider, revBlendSlider;
+    juce::ComboBox revTypeBox;
+    juce::ToggleButton revBypassButton;
+    juce::Label revDecayLabel, revToneLabel, revBlendLabel, revTypeLabel;
+
     // Compressor attachments
     std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> compThresholdAttachment;
     std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> compRatioAttachment;
@@ -74,6 +80,13 @@ private:
     std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> modBlendAttachment;
     std::unique_ptr<juce::AudioProcessorValueTreeState::ComboBoxAttachment> modTypeAttachment;
     std::unique_ptr<juce::AudioProcessorValueTreeState::ButtonAttachment> modBypassAttachment;
+
+    // Reverb attachments
+    std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> revDecayAttachment;
+    std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> revToneAttachment;
+    std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> revBlendAttachment;
+    std::unique_ptr<juce::AudioProcessorValueTreeState::ComboBoxAttachment> revTypeAttachment;
+    std::unique_ptr<juce::AudioProcessorValueTreeState::ButtonAttachment> revBypassAttachment;
 
     void setupSlider(juce::Slider& slider, juce::Label& label, const juce::String& labelText, juce::Colour colour);
     void setupComboBox(juce::ComboBox& box, juce::Label& label, const juce::String& labelText, juce::Colour colour);

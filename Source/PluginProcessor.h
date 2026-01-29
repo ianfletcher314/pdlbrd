@@ -5,6 +5,7 @@
 #include "DSP/Distortion.h"
 #include "DSP/AmpSim.h"
 #include "DSP/Modulation.h"
+#include "DSP/Reverb.h"
 
 class PDLBRDAudioProcessor : public juce::AudioProcessor
 {
@@ -51,6 +52,7 @@ private:
     Distortion distortion;
     AmpSim ampSim;
     Modulation modulation;
+    Reverb reverb;
 
     // Compressor
     std::atomic<float>* compThreshold = nullptr;
@@ -84,6 +86,13 @@ private:
     std::atomic<float>* modBlend = nullptr;
     std::atomic<float>* modType = nullptr;
     std::atomic<float>* modBypass = nullptr;
+
+    // Reverb
+    std::atomic<float>* revDecay = nullptr;
+    std::atomic<float>* revTone = nullptr;
+    std::atomic<float>* revBlend = nullptr;
+    std::atomic<float>* revType = nullptr;
+    std::atomic<float>* revBypass = nullptr;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (PDLBRDAudioProcessor)
 };
