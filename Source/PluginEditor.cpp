@@ -121,7 +121,7 @@ static void drawFootswitch(juce::Graphics& g, juce::Rectangle<float> bounds, boo
     if (ledColour.getAlpha() > 0)
     {
         float ledSize = 10.0f;
-        float ledX = bounds.getX() - 18.0f;
+        float ledX = bounds.getX() - 28.0f;  // Moved further left
         float ledY = cy - ledSize / 2.0f;
 
         if (isOn)
@@ -294,7 +294,7 @@ void EffectSection::paint(juce::Graphics& g)
         // Draw horizontal gain reduction meter with segmented LEDs
         float meterX = 430;
         float meterY = bounds.getCentreY() - 12;
-        float meterWidth = bounds.getRight() - 125 - meterX;
+        float meterWidth = bounds.getRight() - 145 - meterX;  // Leave room for LED
         float meterHeight = 24;
 
         // Meter background
@@ -340,14 +340,10 @@ void EffectSection::paint(juce::Graphics& g)
 
             g.fillRoundedRectangle(segX, meterY + 4, segmentWidth - segmentGap, segmentHeight, 2.0f);
         }
+    }
 
-        // Draw footswitch without LED
-        drawFootswitch(g, footswitchBounds, isActive, juce::Colours::transparentBlack);
-    }
-    else
-    {
-        drawFootswitch(g, footswitchBounds, isActive, PedalColors::led);
-    }
+    // Draw footswitch with LED for all pedals (moved further left)
+    drawFootswitch(g, footswitchBounds, isActive, PedalColors::led);
 
     // Drag handle indicator (subtle dots at top right)
     g.setColour(juce::Colours::white.withAlpha(0.2f));
