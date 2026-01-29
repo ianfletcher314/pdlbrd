@@ -345,11 +345,11 @@ void EffectSection::paint(juce::Graphics& g)
     // Draw footswitch with LED for all pedals (moved further left)
     drawFootswitch(g, footswitchBounds, isActive, PedalColors::led);
 
-    // Drag handle indicator (subtle dots at top right)
-    g.setColour(juce::Colours::white.withAlpha(0.2f));
-    float dotX = bounds.getRight() - 26;
-    float dotY = bounds.getY() + 10;
-    for (int row = 0; row < 2; ++row)
+    // Drag handle indicator (between the two left bolts)
+    g.setColour(juce::Colours::white.withAlpha(0.25f));
+    float dotX = bounds.getX() + screwInset - 1.5f;  // Centered under screws
+    float dotY = bounds.getCentreY() - 7.5f;  // Centered vertically between screws
+    for (int row = 0; row < 3; ++row)
     {
         for (int col = 0; col < 2; ++col)
         {
