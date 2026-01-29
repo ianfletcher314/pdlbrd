@@ -4,6 +4,7 @@
 #include "DSP/Compressor.h"
 #include "DSP/Distortion.h"
 #include "DSP/AmpSim.h"
+#include "DSP/Modulation.h"
 
 class PDLBRDAudioProcessor : public juce::AudioProcessor
 {
@@ -49,8 +50,9 @@ private:
     Compressor compressor;
     Distortion distortion;
     AmpSim ampSim;
+    Modulation modulation;
 
-    // Compressor parameters
+    // Compressor
     std::atomic<float>* compThreshold = nullptr;
     std::atomic<float>* compRatio = nullptr;
     std::atomic<float>* compAttack = nullptr;
@@ -59,14 +61,14 @@ private:
     std::atomic<float>* compBlend = nullptr;
     std::atomic<float>* compBypass = nullptr;
 
-    // Distortion parameters
+    // Distortion
     std::atomic<float>* distDrive = nullptr;
     std::atomic<float>* distTone = nullptr;
     std::atomic<float>* distLevel = nullptr;
     std::atomic<float>* distType = nullptr;
     std::atomic<float>* distBypass = nullptr;
 
-    // Amp Sim parameters
+    // Amp Sim
     std::atomic<float>* ampGain = nullptr;
     std::atomic<float>* ampBass = nullptr;
     std::atomic<float>* ampMid = nullptr;
@@ -75,6 +77,13 @@ private:
     std::atomic<float>* ampMaster = nullptr;
     std::atomic<float>* ampType = nullptr;
     std::atomic<float>* ampBypass = nullptr;
+
+    // Modulation
+    std::atomic<float>* modRate = nullptr;
+    std::atomic<float>* modDepth = nullptr;
+    std::atomic<float>* modBlend = nullptr;
+    std::atomic<float>* modType = nullptr;
+    std::atomic<float>* modBypass = nullptr;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (PDLBRDAudioProcessor)
 };

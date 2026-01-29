@@ -37,6 +37,10 @@
               file="Source/DSP/AmpSim.cpp"/>
         <FILE id="AMPH" name="AmpSim.h" compile="0" resource="0"
               file="Source/DSP/AmpSim.h"/>
+        <FILE id="MODCPP" name="Modulation.cpp" compile="1" resource="0"
+              file="Source/DSP/Modulation.cpp"/>
+        <FILE id="MODH" name="Modulation.h" compile="0" resource="0"
+              file="Source/DSP/Modulation.h"/>
       </GROUP>
     </GROUP>
   </MAINGROUP>

@@ -15,26 +15,32 @@ public:
 private:
     PDLBRDAudioProcessor& audioProcessor;
 
-    // Compressor controls
+    // Compressor
     juce::Slider compThresholdSlider, compRatioSlider, compAttackSlider;
     juce::Slider compReleaseSlider, compMakeupSlider, compBlendSlider;
     juce::ToggleButton compBypassButton;
     juce::Label compThresholdLabel, compRatioLabel, compAttackLabel;
     juce::Label compReleaseLabel, compMakeupLabel, compBlendLabel;
 
-    // Distortion controls
+    // Distortion
     juce::Slider distDriveSlider, distToneSlider, distLevelSlider;
     juce::ComboBox distTypeBox;
     juce::ToggleButton distBypassButton;
     juce::Label distDriveLabel, distToneLabel, distLevelLabel, distTypeLabel;
 
-    // Amp Sim controls
+    // Amp Sim
     juce::Slider ampGainSlider, ampBassSlider, ampMidSlider;
     juce::Slider ampMidFreqSlider, ampTrebleSlider, ampMasterSlider;
     juce::ComboBox ampTypeBox;
     juce::ToggleButton ampBypassButton;
     juce::Label ampGainLabel, ampBassLabel, ampMidLabel;
     juce::Label ampMidFreqLabel, ampTrebleLabel, ampMasterLabel, ampTypeLabel;
+
+    // Modulation
+    juce::Slider modRateSlider, modDepthSlider, modBlendSlider;
+    juce::ComboBox modTypeBox;
+    juce::ToggleButton modBypassButton;
+    juce::Label modRateLabel, modDepthLabel, modBlendLabel, modTypeLabel;
 
     // Compressor attachments
     std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> compThresholdAttachment;
@@ -61,6 +67,13 @@ private:
     std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> ampMasterAttachment;
     std::unique_ptr<juce::AudioProcessorValueTreeState::ComboBoxAttachment> ampTypeAttachment;
     std::unique_ptr<juce::AudioProcessorValueTreeState::ButtonAttachment> ampBypassAttachment;
+
+    // Modulation attachments
+    std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> modRateAttachment;
+    std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> modDepthAttachment;
+    std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> modBlendAttachment;
+    std::unique_ptr<juce::AudioProcessorValueTreeState::ComboBoxAttachment> modTypeAttachment;
+    std::unique_ptr<juce::AudioProcessorValueTreeState::ButtonAttachment> modBypassAttachment;
 
     void setupSlider(juce::Slider& slider, juce::Label& label, const juce::String& labelText, juce::Colour colour);
     void setupComboBox(juce::ComboBox& box, juce::Label& label, const juce::String& labelText, juce::Colour colour);

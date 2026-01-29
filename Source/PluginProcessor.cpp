@@ -7,7 +7,7 @@ PDLBRDAudioProcessor::PDLBRDAudioProcessor()
                        .withOutput ("Output", juce::AudioChannelSet::stereo(), true)),
        apvts(*this, nullptr, "Parameters", createParameterLayout())
 {
-    // Compressor parameters
+    // Compressor
     compThreshold = apvts.getRawParameterValue("compThreshold");
     compRatio = apvts.getRawParameterValue("compRatio");
     compAttack = apvts.getRawParameterValue("compAttack");
@@ -16,14 +16,14 @@ PDLBRDAudioProcessor::PDLBRDAudioProcessor()
     compBlend = apvts.getRawParameterValue("compBlend");
     compBypass = apvts.getRawParameterValue("compBypass");
 
-    // Distortion parameters
+    // Distortion
     distDrive = apvts.getRawParameterValue("distDrive");
     distTone = apvts.getRawParameterValue("distTone");
     distLevel = apvts.getRawParameterValue("distLevel");
     distType = apvts.getRawParameterValue("distType");
     distBypass = apvts.getRawParameterValue("distBypass");
 
-    // Amp Sim parameters
+    // Amp Sim
     ampGain = apvts.getRawParameterValue("ampGain");
     ampBass = apvts.getRawParameterValue("ampBass");
     ampMid = apvts.getRawParameterValue("ampMid");
@@ -32,11 +32,16 @@ PDLBRDAudioProcessor::PDLBRDAudioProcessor()
     ampMaster = apvts.getRawParameterValue("ampMaster");
     ampType = apvts.getRawParameterValue("ampType");
     ampBypass = apvts.getRawParameterValue("ampBypass");
+
+    // Modulation
+    modRate = apvts.getRawParameterValue("modRate");
+    modDepth = apvts.getRawParameterValue("modDepth");
+    modBlend = apvts.getRawParameterValue("modBlend");
+    modType = apvts.getRawParameterValue("modType");
+    modBypass = apvts.getRawParameterValue("modBypass");
 }
 
-PDLBRDAudioProcessor::~PDLBRDAudioProcessor()
-{
-}
+PDLBRDAudioProcessor::~PDLBRDAudioProcessor() {}
 
 juce::AudioProcessorValueTreeState::ParameterLayout PDLBRDAudioProcessor::createParameterLayout()
 {
@@ -120,6 +125,25 @@ juce::AudioProcessorValueTreeState::ParameterLayout PDLBRDAudioProcessor::create
     params.push_back(std::make_unique<juce::AudioParameterBool>(
         juce::ParameterID("ampBypass", 1), "Amp Bypass", false));
 
+    // === MODULATION ===
+    params.push_back(std::make_unique<juce::AudioParameterFloat>(
+        juce::ParameterID("modRate", 1), "Mod Rate",
+        juce::NormalisableRange<float>(0.0f, 100.0f, 1.0f), 50.0f,
+        juce::AudioParameterFloatAttributes().withLabel("%")));
+    params.push_back(std::make_unique<juce::AudioParameterFloat>(
+        juce::ParameterID("modDepth", 1), "Mod Depth",
+        juce::NormalisableRange<float>(0.0f, 100.0f, 1.0f), 50.0f,
+        juce::AudioParameterFloatAttributes().withLabel("%")));
+    params.push_back(std::make_unique<juce::AudioParameterFloat>(
+        juce::ParameterID("modBlend", 1), "Mod Blend",
+        juce::NormalisableRange<float>(0.0f, 100.0f, 1.0f), 50.0f,
+        juce::AudioParameterFloatAttributes().withLabel("%")));
+    params.push_back(std::make_unique<juce::AudioParameterChoice>(
+        juce::ParameterID("modType", 1), "Mod Type",
+        juce::StringArray{ "Phaser", "Flanger", "Chorus", "Tremolo", "Vibrato" }, 2));
+    params.push_back(std::make_unique<juce::AudioParameterBool>(
+        juce::ParameterID("modBypass", 1), "Mod Bypass", false));
+
     return { params.begin(), params.end() };
 }
 
@@ -130,15 +154,16 @@ bool PDLBRDAudioProcessor::isMidiEffect() const { return false; }
 double PDLBRDAudioProcessor::getTailLengthSeconds() const { return 0.0; }
 int PDLBRDAudioProcessor::getNumPrograms() { return 1; }
 int PDLBRDAudioProcessor::getCurrentProgram() { return 0; }
-void PDLBRDAudioProcessor::setCurrentProgram (int index) { juce::ignoreUnused(index); }
-const juce::String PDLBRDAudioProcessor::getProgramName (int index) { juce::ignoreUnused(index); return {}; }
-void PDLBRDAudioProcessor::changeProgramName (int index, const juce::String& newName) { juce::ignoreUnused(index, newName); }
+void PDLBRDAudioProcessor::setCurrentProgram(int index) { juce::ignoreUnused(index); }
+const juce::String PDLBRDAudioProcessor::getProgramName(int index) { juce::ignoreUnused(index); return {}; }
+void PDLBRDAudioProcessor::changeProgramName(int index, const juce::String& newName) { juce::ignoreUnused(index, newName); }
 
-void PDLBRDAudioProcessor::prepareToPlay (double sampleRate, int samplesPerBlock)
+void PDLBRDAudioProcessor::prepareToPlay(double sampleRate, int samplesPerBlock)
 {
     compressor.prepare(sampleRate, samplesPerBlock);
     distortion.prepare(sampleRate, samplesPerBlock);
     ampSim.prepare(sampleRate, samplesPerBlock);
+    modulation.prepare(sampleRate, samplesPerBlock);
 }
 
 void PDLBRDAudioProcessor::releaseResources()
@@ -146,9 +171,10 @@ void PDLBRDAudioProcessor::releaseResources()
     compressor.reset();
     distortion.reset();
     ampSim.reset();
+    modulation.reset();
 }
 
-bool PDLBRDAudioProcessor::isBusesLayoutSupported (const BusesLayout& layouts) const
+bool PDLBRDAudioProcessor::isBusesLayoutSupported(const BusesLayout& layouts) const
 {
     if (layouts.getMainOutputChannelSet() != juce::AudioChannelSet::mono()
      && layouts.getMainOutputChannelSet() != juce::AudioChannelSet::stereo())
@@ -158,12 +184,12 @@ bool PDLBRDAudioProcessor::isBusesLayoutSupported (const BusesLayout& layouts) c
     return true;
 }
 
-void PDLBRDAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce::MidiBuffer& midiMessages)
+void PDLBRDAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce::MidiBuffer& midiMessages)
 {
     juce::ignoreUnused(midiMessages);
     juce::ScopedNoDenormals noDenormals;
 
-    auto totalNumInputChannels  = getTotalNumInputChannels();
+    auto totalNumInputChannels = getTotalNumInputChannels();
     auto totalNumOutputChannels = getTotalNumOutputChannels();
     for (auto i = totalNumInputChannels; i < totalNumOutputChannels; ++i)
         buffer.clear(i, 0, buffer.getNumSamples());
@@ -194,20 +220,28 @@ void PDLBRDAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce:
     ampSim.setType(static_cast<int>(ampType->load()));
     ampSim.setBypass(ampBypass->load() > 0.5f);
 
-    // Signal chain: Compressor -> Distortion -> Amp Sim
+    // Update modulation
+    modulation.setRate(modRate->load());
+    modulation.setDepth(modDepth->load());
+    modulation.setBlend(modBlend->load());
+    modulation.setType(static_cast<int>(modType->load()));
+    modulation.setBypass(modBypass->load() > 0.5f);
+
+    // Signal chain: Compressor -> Distortion -> Amp Sim -> Modulation
     compressor.process(buffer);
     distortion.process(buffer);
     ampSim.process(buffer);
+    modulation.process(buffer);
 }
 
-void PDLBRDAudioProcessor::getStateInformation (juce::MemoryBlock& destData)
+void PDLBRDAudioProcessor::getStateInformation(juce::MemoryBlock& destData)
 {
     auto state = apvts.copyState();
     std::unique_ptr<juce::XmlElement> xml(state.createXml());
     copyXmlToBinary(*xml, destData);
 }
 
-void PDLBRDAudioProcessor::setStateInformation (const void* data, int sizeInBytes)
+void PDLBRDAudioProcessor::setStateInformation(const void* data, int sizeInBytes)
 {
     std::unique_ptr<juce::XmlElement> xml(getXmlFromBinary(data, sizeInBytes));
     if (xml != nullptr && xml->hasTagName(apvts.state.getType()))
