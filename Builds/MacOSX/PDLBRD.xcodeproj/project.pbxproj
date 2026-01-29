@@ -44,6 +44,7 @@
 		71DD47EE89AEC7A1AD559770 /* include_juce_audio_plugin_client_ARA.cpp */ = {isa = PBXBuildFile; fileRef = 8AAF78617B30D5AECB5A5F5B; };
 		7512E79EBF40A41B9F37AE24 /* include_juce_audio_processors.mm */ = {isa = PBXBuildFile; fileRef = A04D74AA38D3A5D3DB555BBC; };
 		7581324C5892DC61ADD55EED /* include_juce_audio_plugin_client_AU_2.mm */ = {isa = PBXBuildFile; fileRef = A87F8E3E8170C76B6B84ED4B; };
+		775F58E33FBBFE0DA4C4500F /* AmpSim.cpp */ = {isa = PBXBuildFile; fileRef = 09C4150949612BCCF1DFEBD5; };
 		7C056B49FC7EB4086A3EDE07 /* include_juce_dsp.mm */ = {isa = PBXBuildFile; fileRef = 28E4E8DBCEF049F989902C71; };
 		8091B476B9AD406CAA1B1B1B /* Compressor.cpp */ = {isa = PBXBuildFile; fileRef = AD4B620E8FC001EE08911583; };
 		8AD188A3CD6FFE571920E96E /* CoreAudio.framework */ = {isa = PBXBuildFile; fileRef = 7FDC03488948C132A04C0789; };
@@ -75,6 +76,7 @@
 
 /* Begin PBXFileReference section */
 		093A30A8B9618A0466D38A3D /* Foundation.framework */ /* Foundation.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Foundation.framework; path = System/Library/Frameworks/Foundation.framework; sourceTree = SDKROOT; };
+		09C4150949612BCCF1DFEBD5 /* AmpSim.cpp */ /* AmpSim.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = AmpSim.cpp; path = ../../Source/DSP/AmpSim.cpp; sourceTree = SOURCE_ROOT; };
 		0B6161FB24EDDC045F5AB8A4 /* include_juce_audio_processors_headless_ara.cpp */ /* include_juce_audio_processors_headless_ara.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = include_juce_audio_processors_headless_ara.cpp; path = ../../JuceLibraryCode/include_juce_audio_processors_headless_ara.cpp; sourceTree = SOURCE_ROOT; };
 		13E4F1B26C42DE25AFC5ED41 /* CoreMIDI.framework */ /* CoreMIDI.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = CoreMIDI.framework; path = System/Library/Frameworks/CoreMIDI.framework; sourceTree = SDKROOT; };
 		16EBAE1CA2070B30F33D9DE7 /* include_juce_audio_formats.mm */ /* include_juce_audio_formats.mm */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.objcpp; name = include_juce_audio_formats.mm; path = ../../JuceLibraryCode/include_juce_audio_formats.mm; sourceTree = SOURCE_ROOT; };
@@ -121,6 +123,7 @@
 		A5ADB80CD392EAC4AF35ECE8 /* IOKit.framework */ /* IOKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = IOKit.framework; path = System/Library/Frameworks/IOKit.framework; sourceTree = SDKROOT; };
 		A60CEA73F575449DA0543782 /* MetalKit.framework */ /* MetalKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = MetalKit.framework; path = System/Library/Frameworks/MetalKit.framework; sourceTree = SDKROOT; };
 		A87F8E3E8170C76B6B84ED4B /* include_juce_audio_plugin_client_AU_2.mm */ /* include_juce_audio_plugin_client_AU_2.mm */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.objcpp; name = include_juce_audio_plugin_client_AU_2.mm; path = ../../JuceLibraryCode/include_juce_audio_plugin_client_AU_2.mm; sourceTree = SOURCE_ROOT; };
+		AD2B54D3E551C235F6D3890A /* AmpSim.h */ /* AmpSim.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = AmpSim.h; path = ../../Source/DSP/AmpSim.h; sourceTree = SOURCE_ROOT; };
 		AD409CB95F142B1614D23DAC /* Info-AU.plist */ /* Info-AU.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; name = "Info-AU.plist"; path = "Info-AU.plist"; sourceTree = SOURCE_ROOT; };
 		AD4B620E8FC001EE08911583 /* Compressor.cpp */ /* Compressor.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = Compressor.cpp; path = ../../Source/DSP/Compressor.cpp; sourceTree = SOURCE_ROOT; };
 		AFC99FBE4919C39CFC1EF0EE /* juce_audio_utils */ /* juce_audio_utils */ = {isa = PBXFileReference; lastKnownFileType = folder; name = juce_audio_utils; path = "~/JUCE/modules/juce_audio_utils"; sourceTree = "<absolute>"; };
@@ -303,6 +306,8 @@
 				8A60377C4665953FEC947BF7,
 				F12C013169E805094248CE4C,
 				2BF6BC0F422F3BC093204480,
+				09C4150949612BCCF1DFEBD5,
+				AD2B54D3E551C235F6D3890A,
 			);
 			name = DSP;
 			sourceTree = "<group>";
@@ -663,6 +668,7 @@
 				6FF174346B148E9C430CA92F,
 				8091B476B9AD406CAA1B1B1B,
 				C060B22E35A2DA2FC0B1A555,
+				775F58E33FBBFE0DA4C4500F,
 				636E7F861FAC1C91C9FC5948,
 				E37B18AF7BBAE99DD8D8E7EF,
 				D5718AAA5CFB1AB9A2A60BF0,

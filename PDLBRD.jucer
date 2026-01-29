@@ -33,6 +33,10 @@
               file="Source/DSP/Distortion.cpp"/>
         <FILE id="DISTH" name="Distortion.h" compile="0" resource="0"
               file="Source/DSP/Distortion.h"/>
+        <FILE id="AMPCPP" name="AmpSim.cpp" compile="1" resource="0"
+              file="Source/DSP/AmpSim.cpp"/>
+        <FILE id="AMPH" name="AmpSim.h" compile="0" resource="0"
+              file="Source/DSP/AmpSim.h"/>
       </GROUP>
     </GROUP>
   </MAINGROUP>

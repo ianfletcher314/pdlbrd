@@ -3,6 +3,7 @@
 #include <JuceHeader.h>
 #include "DSP/Compressor.h"
 #include "DSP/Distortion.h"
+#include "DSP/AmpSim.h"
 
 class PDLBRDAudioProcessor : public juce::AudioProcessor
 {
@@ -37,22 +38,19 @@ public:
     void getStateInformation (juce::MemoryBlock& destData) override;
     void setStateInformation (const void* data, int sizeInBytes) override;
 
-    // Parameter state
     juce::AudioProcessorValueTreeState& getAPVTS() { return apvts; }
-
-    // For UI metering
     float getCompressorGainReduction() const { return compressor.getGainReduction(); }
 
 private:
-    // Parameters
     juce::AudioProcessorValueTreeState apvts;
     juce::AudioProcessorValueTreeState::ParameterLayout createParameterLayout();
 
     // DSP
     Compressor compressor;
     Distortion distortion;
+    AmpSim ampSim;
 
-    // Compressor parameter pointers
+    // Compressor parameters
     std::atomic<float>* compThreshold = nullptr;
     std::atomic<float>* compRatio = nullptr;
     std::atomic<float>* compAttack = nullptr;
@@ -61,12 +59,22 @@ private:
     std::atomic<float>* compBlend = nullptr;
     std::atomic<float>* compBypass = nullptr;
 
-    // Distortion parameter pointers
+    // Distortion parameters
     std::atomic<float>* distDrive = nullptr;
     std::atomic<float>* distTone = nullptr;
     std::atomic<float>* distLevel = nullptr;
     std::atomic<float>* distType = nullptr;
     std::atomic<float>* distBypass = nullptr;
+
+    // Amp Sim parameters
+    std::atomic<float>* ampGain = nullptr;
+    std::atomic<float>* ampBass = nullptr;
+    std::atomic<float>* ampMid = nullptr;
+    std::atomic<float>* ampMidFreq = nullptr;
+    std::atomic<float>* ampTreble = nullptr;
+    std::atomic<float>* ampMaster = nullptr;
+    std::atomic<float>* ampType = nullptr;
+    std::atomic<float>* ampBypass = nullptr;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (PDLBRDAudioProcessor)
 };
