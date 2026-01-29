@@ -29,6 +29,10 @@
               file="Source/DSP/Compressor.cpp"/>
         <FILE id="COMPH" name="Compressor.h" compile="0" resource="0"
               file="Source/DSP/Compressor.h"/>
+        <FILE id="DISTCPP" name="Distortion.cpp" compile="1" resource="0"
+              file="Source/DSP/Distortion.cpp"/>
+        <FILE id="DISTH" name="Distortion.h" compile="0" resource="0"
+              file="Source/DSP/Distortion.h"/>
       </GROUP>
     </GROUP>
   </MAINGROUP>

@@ -7,7 +7,7 @@ PDLBRDAudioProcessor::PDLBRDAudioProcessor()
                        .withOutput ("Output", juce::AudioChannelSet::stereo(), true)),
        apvts(*this, nullptr, "Parameters", createParameterLayout())
 {
-    // Get parameter pointers for real-time access
+    // Compressor parameter pointers
     compThreshold = apvts.getRawParameterValue("compThreshold");
     compRatio = apvts.getRawParameterValue("compRatio");
     compAttack = apvts.getRawParameterValue("compAttack");
@@ -15,6 +15,13 @@ PDLBRDAudioProcessor::PDLBRDAudioProcessor()
     compMakeup = apvts.getRawParameterValue("compMakeup");
     compBlend = apvts.getRawParameterValue("compBlend");
     compBypass = apvts.getRawParameterValue("compBypass");
+
+    // Distortion parameter pointers
+    distDrive = apvts.getRawParameterValue("distDrive");
+    distTone = apvts.getRawParameterValue("distTone");
+    distLevel = apvts.getRawParameterValue("distLevel");
+    distType = apvts.getRawParameterValue("distType");
+    distBypass = apvts.getRawParameterValue("distBypass");
 }
 
 PDLBRDAudioProcessor::~PDLBRDAudioProcessor()
@@ -25,7 +32,7 @@ juce::AudioProcessorValueTreeState::ParameterLayout PDLBRDAudioProcessor::create
 {
     std::vector<std::unique_ptr<juce::RangedAudioParameter>> params;
 
-    // Compressor parameters
+    // === COMPRESSOR PARAMETERS ===
     params.push_back(std::make_unique<juce::AudioParameterFloat>(
         juce::ParameterID("compThreshold", 1),
         "Comp Threshold",
@@ -36,7 +43,7 @@ juce::AudioProcessorValueTreeState::ParameterLayout PDLBRDAudioProcessor::create
     params.push_back(std::make_unique<juce::AudioParameterFloat>(
         juce::ParameterID("compRatio", 1),
         "Comp Ratio",
-        juce::NormalisableRange<float>(1.0f, 20.0f, 0.1f, 0.5f), // skew for better control
+        juce::NormalisableRange<float>(1.0f, 20.0f, 0.1f, 0.5f),
         4.0f,
         juce::AudioParameterFloatAttributes().withLabel(":1")));
 
@@ -71,6 +78,39 @@ juce::AudioProcessorValueTreeState::ParameterLayout PDLBRDAudioProcessor::create
     params.push_back(std::make_unique<juce::AudioParameterBool>(
         juce::ParameterID("compBypass", 1),
         "Comp Bypass",
+        false));
+
+    // === DISTORTION PARAMETERS ===
+    params.push_back(std::make_unique<juce::AudioParameterFloat>(
+        juce::ParameterID("distDrive", 1),
+        "Dist Drive",
+        juce::NormalisableRange<float>(0.0f, 100.0f, 1.0f),
+        50.0f,
+        juce::AudioParameterFloatAttributes().withLabel("%")));
+
+    params.push_back(std::make_unique<juce::AudioParameterFloat>(
+        juce::ParameterID("distTone", 1),
+        "Dist Tone",
+        juce::NormalisableRange<float>(0.0f, 100.0f, 1.0f),
+        50.0f,
+        juce::AudioParameterFloatAttributes().withLabel("%")));
+
+    params.push_back(std::make_unique<juce::AudioParameterFloat>(
+        juce::ParameterID("distLevel", 1),
+        "Dist Level",
+        juce::NormalisableRange<float>(0.0f, 100.0f, 1.0f),
+        50.0f,
+        juce::AudioParameterFloatAttributes().withLabel("%")));
+
+    params.push_back(std::make_unique<juce::AudioParameterChoice>(
+        juce::ParameterID("distType", 1),
+        "Dist Type",
+        juce::StringArray{ "TS9", "RAT", "Blues", "Fuzz", "Muff" },
+        0));
+
+    params.push_back(std::make_unique<juce::AudioParameterBool>(
+        juce::ParameterID("distBypass", 1),
+        "Dist Bypass",
         false));
 
     return { params.begin(), params.end() };
@@ -130,11 +170,13 @@ void PDLBRDAudioProcessor::changeProgramName (int index, const juce::String& new
 void PDLBRDAudioProcessor::prepareToPlay (double sampleRate, int samplesPerBlock)
 {
     compressor.prepare(sampleRate, samplesPerBlock);
+    distortion.prepare(sampleRate, samplesPerBlock);
 }
 
 void PDLBRDAudioProcessor::releaseResources()
 {
     compressor.reset();
+    distortion.reset();
 }
 
 bool PDLBRDAudioProcessor::isBusesLayoutSupported (const BusesLayout& layouts) const
@@ -160,17 +202,25 @@ void PDLBRDAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce:
     for (auto i = totalNumInputChannels; i < totalNumOutputChannels; ++i)
         buffer.clear (i, 0, buffer.getNumSamples());
 
-    // Update compressor parameters from APVTS
+    // Update compressor parameters
     compressor.setThreshold(compThreshold->load());
     compressor.setRatio(compRatio->load());
     compressor.setAttack(compAttack->load());
     compressor.setRelease(compRelease->load());
     compressor.setMakeupGain(compMakeup->load());
-    compressor.setBlend(compBlend->load() / 100.0f);  // Convert from % to 0-1
+    compressor.setBlend(compBlend->load() / 100.0f);
     compressor.setBypass(compBypass->load() > 0.5f);
 
-    // Process through compressor
+    // Update distortion parameters
+    distortion.setDrive(distDrive->load());
+    distortion.setTone(distTone->load());
+    distortion.setLevel(distLevel->load());
+    distortion.setType(static_cast<int>(distType->load()));
+    distortion.setBypass(distBypass->load() > 0.5f);
+
+    // Signal chain: Compressor -> Distortion
     compressor.process(buffer);
+    distortion.process(buffer);
 }
 
 void PDLBRDAudioProcessor::getStateInformation (juce::MemoryBlock& destData)

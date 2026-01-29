@@ -16,32 +16,36 @@ private:
     PDLBRDAudioProcessor& audioProcessor;
 
     // Compressor controls
-    juce::Slider thresholdSlider;
-    juce::Slider ratioSlider;
-    juce::Slider attackSlider;
-    juce::Slider releaseSlider;
-    juce::Slider makeupSlider;
-    juce::Slider blendSlider;
-    juce::ToggleButton bypassButton;
+    juce::Slider compThresholdSlider, compRatioSlider, compAttackSlider;
+    juce::Slider compReleaseSlider, compMakeupSlider, compBlendSlider;
+    juce::ToggleButton compBypassButton;
+    juce::Label compThresholdLabel, compRatioLabel, compAttackLabel;
+    juce::Label compReleaseLabel, compMakeupLabel, compBlendLabel;
 
-    // Labels
-    juce::Label thresholdLabel;
-    juce::Label ratioLabel;
-    juce::Label attackLabel;
-    juce::Label releaseLabel;
-    juce::Label makeupLabel;
-    juce::Label blendLabel;
+    // Distortion controls
+    juce::Slider distDriveSlider, distToneSlider, distLevelSlider;
+    juce::ComboBox distTypeBox;
+    juce::ToggleButton distBypassButton;
+    juce::Label distDriveLabel, distToneLabel, distLevelLabel, distTypeLabel;
 
-    // Attachments (connect sliders to parameters)
-    std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> thresholdAttachment;
-    std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> ratioAttachment;
-    std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> attackAttachment;
-    std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> releaseAttachment;
-    std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> makeupAttachment;
-    std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> blendAttachment;
-    std::unique_ptr<juce::AudioProcessorValueTreeState::ButtonAttachment> bypassAttachment;
+    // Compressor attachments
+    std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> compThresholdAttachment;
+    std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> compRatioAttachment;
+    std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> compAttackAttachment;
+    std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> compReleaseAttachment;
+    std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> compMakeupAttachment;
+    std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> compBlendAttachment;
+    std::unique_ptr<juce::AudioProcessorValueTreeState::ButtonAttachment> compBypassAttachment;
 
-    void setupSlider(juce::Slider& slider, juce::Label& label, const juce::String& labelText);
+    // Distortion attachments
+    std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> distDriveAttachment;
+    std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> distToneAttachment;
+    std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> distLevelAttachment;
+    std::unique_ptr<juce::AudioProcessorValueTreeState::ComboBoxAttachment> distTypeAttachment;
+    std::unique_ptr<juce::AudioProcessorValueTreeState::ButtonAttachment> distBypassAttachment;
+
+    void setupSlider(juce::Slider& slider, juce::Label& label, const juce::String& labelText, juce::Colour colour);
+    void setupComboBox(juce::ComboBox& box, juce::Label& label, const juce::String& labelText);
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (PDLBRDAudioProcessorEditor)
 };

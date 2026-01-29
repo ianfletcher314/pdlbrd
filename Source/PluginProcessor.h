@@ -2,6 +2,7 @@
 
 #include <JuceHeader.h>
 #include "DSP/Compressor.h"
+#include "DSP/Distortion.h"
 
 class PDLBRDAudioProcessor : public juce::AudioProcessor
 {
@@ -49,8 +50,9 @@ private:
 
     // DSP
     Compressor compressor;
+    Distortion distortion;
 
-    // Parameter pointers for real-time access
+    // Compressor parameter pointers
     std::atomic<float>* compThreshold = nullptr;
     std::atomic<float>* compRatio = nullptr;
     std::atomic<float>* compAttack = nullptr;
@@ -58,6 +60,13 @@ private:
     std::atomic<float>* compMakeup = nullptr;
     std::atomic<float>* compBlend = nullptr;
     std::atomic<float>* compBypass = nullptr;
+
+    // Distortion parameter pointers
+    std::atomic<float>* distDrive = nullptr;
+    std::atomic<float>* distTone = nullptr;
+    std::atomic<float>* distLevel = nullptr;
+    std::atomic<float>* distType = nullptr;
+    std::atomic<float>* distBypass = nullptr;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (PDLBRDAudioProcessor)
 };
