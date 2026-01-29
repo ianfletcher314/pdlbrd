@@ -284,17 +284,17 @@ void EffectSection::paint(juce::Graphics& g)
     g.drawText(name, (int)(titleX - 50), (int)(titleY - 7), 100, 14, juce::Justification::centred);
     g.restoreState();
 
-    // Draw footswitch (vertically centered on right side)
+    // Draw footswitch (vertically centered, equidistant from right bolts like title is from left)
     bool isActive = !bypassButton.getToggleState();
     float footswitchY = bounds.getCentreY() - 22;
-    auto footswitchBounds = juce::Rectangle<float>(bounds.getRight() - 60, footswitchY, 44, 44);
+    auto footswitchBounds = juce::Rectangle<float>(bounds.getRight() - 80, footswitchY, 44, 44);
 
     if (isCompressor)
     {
         // Draw horizontal gain reduction meter with segmented LEDs
         float meterX = 430;
         float meterY = bounds.getCentreY() - 12;
-        float meterWidth = bounds.getRight() - 145 - meterX;  // Leave room for LED
+        float meterWidth = bounds.getRight() - 165 - meterX;  // Leave room for LED + footswitch
         float meterHeight = 24;
 
         // Meter background
@@ -382,9 +382,9 @@ void EffectSection::resized()
         typeBox.setBounds(x, typeBoxY, 90, typeBoxHeight);
     }
 
-    // Footswitch hit area (vertically centered)
+    // Footswitch hit area (vertically centered, equidistant from right bolts)
     int footswitchY = bounds.getCentreY() - 22;
-    bypassButton.setBounds(bounds.getRight() - 60, footswitchY, 44, 44);
+    bypassButton.setBounds(bounds.getRight() - 80, footswitchY, 44, 44);
 }
 
 void EffectSection::mouseDown(const juce::MouseEvent& e)
