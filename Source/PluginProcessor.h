@@ -48,6 +48,14 @@ public:
     float getInputLevel() const { return inputLevel.load(); }
     float getOutputLevel() const { return outputLevel.load(); }
 
+    // Preset management
+    void savePreset(const juce::File& file);
+    void loadPreset(const juce::File& file);
+    juce::String exportPresetToString();
+    void importPresetFromString(const juce::String& presetData);
+    static juce::File getPresetsFolder();
+    juce::StringArray getPresetList();
+
     // Signal chain ordering
     static constexpr int NUM_EFFECTS = 6;
     enum EffectID { COMP1 = 0, DIST, AMP, MOD, REV, COMP2 };

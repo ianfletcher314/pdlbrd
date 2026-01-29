@@ -90,6 +90,14 @@ private:
     float smoothedInputLevel = 0.0f;
     float smoothedOutputLevel = 0.0f;
 
+    // Preset controls
+    juce::ComboBox presetSelector;
+    juce::TextButton saveButton { "Save" };
+    juce::TextButton loadButton { "Load" };
+    void refreshPresetList();
+    void savePreset();
+    void loadPreset();
+
     // Effect sections
     std::array<std::unique_ptr<EffectSection>, PDLBRDAudioProcessor::NUM_EFFECTS> sections;
 

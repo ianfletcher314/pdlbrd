@@ -416,6 +416,122 @@ juce::AudioProcessorEditor* PDLBRDAudioProcessor::createEditor()
 
 bool PDLBRDAudioProcessor::hasEditor() const { return true; }
 
+//==============================================================================
+// Preset Management
+//==============================================================================
+juce::File PDLBRDAudioProcessor::getPresetsFolder()
+{
+    auto folder = juce::File::getSpecialLocation(juce::File::userApplicationDataDirectory)
+                      .getChildFile("Audio/Presets/PDLBRD");
+    if (!folder.exists())
+        folder.createDirectory();
+    return folder;
+}
+
+juce::StringArray PDLBRDAudioProcessor::getPresetList()
+{
+    juce::StringArray presets;
+    auto folder = getPresetsFolder();
+    auto files = folder.findChildFiles(juce::File::findFiles, false, "*.pdlbrd");
+
+    for (auto& file : files)
+        presets.add(file.getFileNameWithoutExtension());
+
+    presets.sort(true);
+    return presets;
+}
+
+juce::String PDLBRDAudioProcessor::exportPresetToString()
+{
+    juce::DynamicObject::Ptr preset = new juce::DynamicObject();
+
+    preset->setProperty("name", "Untitled");
+    preset->setProperty("version", "1.0");
+
+    // Effect order
+    juce::Array<juce::var> orderArray;
+    for (int i = 0; i < NUM_EFFECTS; ++i)
+        orderArray.add(effectOrder[i]);
+    preset->setProperty("effectOrder", orderArray);
+
+    // All parameters
+    juce::DynamicObject::Ptr params = new juce::DynamicObject();
+    for (auto* param : getParameters())
+    {
+        if (auto* p = dynamic_cast<juce::RangedAudioParameter*>(param))
+            params->setProperty(p->getParameterID(), p->getValue());
+    }
+    preset->setProperty("parameters", params.get());
+
+    return juce::JSON::toString(preset.get(), true);
+}
+
+void PDLBRDAudioProcessor::importPresetFromString(const juce::String& presetData)
+{
+    auto parsed = juce::JSON::parse(presetData);
+    if (parsed.isVoid())
+        return;
+
+    auto* preset = parsed.getDynamicObject();
+    if (preset == nullptr)
+        return;
+
+    // Load effect order
+    if (preset->hasProperty("effectOrder"))
+    {
+        auto orderArray = preset->getProperty("effectOrder").getArray();
+        if (orderArray != nullptr && orderArray->size() == NUM_EFFECTS)
+        {
+            for (int i = 0; i < NUM_EFFECTS; ++i)
+                effectOrder[i] = (*orderArray)[i];
+        }
+    }
+
+    // Load parameters
+    if (preset->hasProperty("parameters"))
+    {
+        auto* params = preset->getProperty("parameters").getDynamicObject();
+        if (params != nullptr)
+        {
+            for (auto* param : getParameters())
+            {
+                if (auto* p = dynamic_cast<juce::RangedAudioParameter*>(param))
+                {
+                    if (params->hasProperty(p->getParameterID()))
+                    {
+                        float value = params->getProperty(p->getParameterID());
+                        p->setValueNotifyingHost(value);
+                    }
+                }
+            }
+        }
+    }
+}
+
+void PDLBRDAudioProcessor::savePreset(const juce::File& file)
+{
+    auto presetString = exportPresetToString();
+
+    // Update the name in the JSON
+    auto parsed = juce::JSON::parse(presetString);
+    if (auto* preset = parsed.getDynamicObject())
+    {
+        preset->setProperty("name", file.getFileNameWithoutExtension());
+        presetString = juce::JSON::toString(preset, true);
+    }
+
+    file.replaceWithText(presetString);
+}
+
+void PDLBRDAudioProcessor::loadPreset(const juce::File& file)
+{
+    if (!file.existsAsFile())
+        return;
+
+    auto presetData = file.loadFileAsString();
+    importPresetFromString(presetData);
+}
+
 juce::AudioProcessor* JUCE_CALLTYPE createPluginFilter()
 {
     return new PDLBRDAudioProcessor();

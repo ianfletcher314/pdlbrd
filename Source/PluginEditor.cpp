@@ -239,6 +239,35 @@ PDLBRDAudioProcessorEditor::PDLBRDAudioProcessorEditor(PDLBRDAudioProcessor& p)
     addAndMakeVisible(inputMeter);
     addAndMakeVisible(outputMeter);
 
+    // Preset controls
+    presetSelector.setColour(juce::ComboBox::backgroundColourId, juce::Colour(0xff1a1a2e));
+    presetSelector.setColour(juce::ComboBox::textColourId, juce::Colours::white);
+    presetSelector.setColour(juce::ComboBox::outlineColourId, juce::Colour(0xff4ecdc4).withAlpha(0.5f));
+    presetSelector.setTextWhenNothingSelected("Select Preset...");
+    presetSelector.onChange = [this]() {
+        int index = presetSelector.getSelectedItemIndex();
+        if (index >= 0)
+        {
+            auto presetName = presetSelector.getText();
+            auto file = PDLBRDAudioProcessor::getPresetsFolder().getChildFile(presetName + ".pdlbrd");
+            audioProcessor.loadPreset(file);
+            layoutSections();
+            repaint();
+        }
+    };
+    addAndMakeVisible(presetSelector);
+    refreshPresetList();
+
+    saveButton.setColour(juce::TextButton::buttonColourId, juce::Colour(0xff2a2a3e));
+    saveButton.setColour(juce::TextButton::textColourOffId, juce::Colours::white);
+    saveButton.onClick = [this]() { savePreset(); };
+    addAndMakeVisible(saveButton);
+
+    loadButton.setColour(juce::TextButton::buttonColourId, juce::Colour(0xff2a2a3e));
+    loadButton.setColour(juce::TextButton::textColourOffId, juce::Colours::white);
+    loadButton.onClick = [this]() { loadPreset(); };
+    addAndMakeVisible(loadButton);
+
     createSections();
 
     auto& apvts = audioProcessor.getAPVTS();
@@ -481,8 +510,78 @@ void PDLBRDAudioProcessorEditor::paint(juce::Graphics& g)
     g.drawText("OUT", getWidth() - 30, 6, 20, 12, juce::Justification::centred);
 }
 
+void PDLBRDAudioProcessorEditor::refreshPresetList()
+{
+    presetSelector.clear();
+    auto presets = audioProcessor.getPresetList();
+    int id = 1;
+    for (auto& name : presets)
+        presetSelector.addItem(name, id++);
+}
+
+void PDLBRDAudioProcessorEditor::savePreset()
+{
+    auto folder = PDLBRDAudioProcessor::getPresetsFolder();
+
+    auto chooser = std::make_shared<juce::FileChooser>("Save Preset", folder, "*.pdlbrd");
+    chooser->launchAsync(juce::FileBrowserComponent::saveMode | juce::FileBrowserComponent::canSelectFiles,
+        [this, chooser](const juce::FileChooser& fc)
+        {
+            auto file = fc.getResult();
+            if (file != juce::File{})
+            {
+                auto finalFile = file.hasFileExtension(".pdlbrd") ? file : file.withFileExtension(".pdlbrd");
+                audioProcessor.savePreset(finalFile);
+                refreshPresetList();
+
+                auto name = finalFile.getFileNameWithoutExtension();
+                for (int i = 0; i < presetSelector.getNumItems(); ++i)
+                {
+                    if (presetSelector.getItemText(i) == name)
+                    {
+                        presetSelector.setSelectedItemIndex(i, juce::dontSendNotification);
+                        break;
+                    }
+                }
+            }
+        });
+}
+
+void PDLBRDAudioProcessorEditor::loadPreset()
+{
+    auto folder = PDLBRDAudioProcessor::getPresetsFolder();
+
+    auto chooser = std::make_shared<juce::FileChooser>("Load Preset", folder, "*.pdlbrd");
+    chooser->launchAsync(juce::FileBrowserComponent::openMode | juce::FileBrowserComponent::canSelectFiles,
+        [this, chooser](const juce::FileChooser& fc)
+        {
+            auto file = fc.getResult();
+            if (file.existsAsFile())
+            {
+                audioProcessor.loadPreset(file);
+                layoutSections();
+                repaint();
+
+                auto name = file.getFileNameWithoutExtension();
+                for (int i = 0; i < presetSelector.getNumItems(); ++i)
+                {
+                    if (presetSelector.getItemText(i) == name)
+                    {
+                        presetSelector.setSelectedItemIndex(i, juce::dontSendNotification);
+                        break;
+                    }
+                }
+            }
+        });
+}
+
 void PDLBRDAudioProcessorEditor::resized()
 {
+    // Preset controls
+    presetSelector.setBounds(150, 10, 180, 24);
+    saveButton.setBounds(340, 10, 50, 24);
+    loadButton.setBounds(395, 10, 50, 24);
+
     // Level meters in header
     inputMeter.setBounds(getWidth() - 55, 18, 12, 20);
     outputMeter.setBounds(getWidth() - 30, 18, 12, 20);
