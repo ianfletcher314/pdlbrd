@@ -20,6 +20,16 @@
             file="Source/PluginEditor.cpp"/>
       <FILE id="EDITORH" name="PluginEditor.h" compile="0" resource="0"
             file="Source/PluginEditor.h"/>
+      <GROUP id="DSP" name="DSP">
+        <FILE id="DSPUTILS" name="DSPUtils.h" compile="0" resource="0"
+              file="Source/DSP/DSPUtils.h"/>
+        <FILE id="EFFECTMOD" name="EffectModule.h" compile="0" resource="0"
+              file="Source/DSP/EffectModule.h"/>
+        <FILE id="COMPCPP" name="Compressor.cpp" compile="1" resource="0"
+              file="Source/DSP/Compressor.cpp"/>
+        <FILE id="COMPH" name="Compressor.h" compile="0" resource="0"
+              file="Source/DSP/Compressor.h"/>
+      </GROUP>
     </GROUP>
   </MAINGROUP>
   <JUCEOPTIONS JUCE_STRICT_REFCOUNTEDPOINTER="1" JUCE_VST3_CAN_REPLACE_VST2="0"/>

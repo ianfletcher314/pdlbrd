@@ -1,6 +1,7 @@
 #pragma once
 
 #include <JuceHeader.h>
+#include "DSP/Compressor.h"
 
 class PDLBRDAudioProcessor : public juce::AudioProcessor
 {
@@ -35,6 +36,28 @@ public:
     void getStateInformation (juce::MemoryBlock& destData) override;
     void setStateInformation (const void* data, int sizeInBytes) override;
 
+    // Parameter state
+    juce::AudioProcessorValueTreeState& getAPVTS() { return apvts; }
+
+    // For UI metering
+    float getCompressorGainReduction() const { return compressor.getGainReduction(); }
+
 private:
+    // Parameters
+    juce::AudioProcessorValueTreeState apvts;
+    juce::AudioProcessorValueTreeState::ParameterLayout createParameterLayout();
+
+    // DSP
+    Compressor compressor;
+
+    // Parameter pointers for real-time access
+    std::atomic<float>* compThreshold = nullptr;
+    std::atomic<float>* compRatio = nullptr;
+    std::atomic<float>* compAttack = nullptr;
+    std::atomic<float>* compRelease = nullptr;
+    std::atomic<float>* compMakeup = nullptr;
+    std::atomic<float>* compBlend = nullptr;
+    std::atomic<float>* compBypass = nullptr;
+
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (PDLBRDAudioProcessor)
 };
