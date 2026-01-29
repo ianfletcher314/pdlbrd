@@ -3,7 +3,8 @@
 #include <JuceHeader.h>
 #include "PluginProcessor.h"
 
-class PDLBRDAudioProcessorEditor : public juce::AudioProcessorEditor
+class PDLBRDAudioProcessorEditor : public juce::AudioProcessorEditor,
+                                   public juce::Timer
 {
 public:
     PDLBRDAudioProcessorEditor (PDLBRDAudioProcessor&);
@@ -11,16 +12,30 @@ public:
 
     void paint (juce::Graphics&) override;
     void resized() override;
+    void timerCallback() override;
 
 private:
     PDLBRDAudioProcessor& audioProcessor;
 
-    // Compressor
-    juce::Slider compThresholdSlider, compRatioSlider, compAttackSlider;
-    juce::Slider compReleaseSlider, compMakeupSlider, compBlendSlider;
-    juce::ToggleButton compBypassButton;
-    juce::Label compThresholdLabel, compRatioLabel, compAttackLabel;
-    juce::Label compReleaseLabel, compMakeupLabel, compBlendLabel;
+    // Signal chain display
+    std::array<juce::TextButton, PDLBRDAudioProcessor::NUM_EFFECTS> chainButtons;
+    std::array<juce::TextButton, PDLBRDAudioProcessor::NUM_EFFECTS> upButtons;
+    std::array<juce::TextButton, PDLBRDAudioProcessor::NUM_EFFECTS> downButtons;
+    void updateChainDisplay();
+
+    // Compressor 1
+    juce::Slider comp1ThresholdSlider, comp1RatioSlider, comp1AttackSlider;
+    juce::Slider comp1ReleaseSlider, comp1MakeupSlider, comp1BlendSlider;
+    juce::ToggleButton comp1BypassButton;
+    juce::Label comp1ThresholdLabel, comp1RatioLabel, comp1AttackLabel;
+    juce::Label comp1ReleaseLabel, comp1MakeupLabel, comp1BlendLabel;
+
+    // Compressor 2
+    juce::Slider comp2ThresholdSlider, comp2RatioSlider, comp2AttackSlider;
+    juce::Slider comp2ReleaseSlider, comp2MakeupSlider, comp2BlendSlider;
+    juce::ToggleButton comp2BypassButton;
+    juce::Label comp2ThresholdLabel, comp2RatioLabel, comp2AttackLabel;
+    juce::Label comp2ReleaseLabel, comp2MakeupLabel, comp2BlendLabel;
 
     // Distortion
     juce::Slider distDriveSlider, distToneSlider, distLevelSlider;
@@ -48,14 +63,23 @@ private:
     juce::ToggleButton revBypassButton;
     juce::Label revDecayLabel, revToneLabel, revBlendLabel, revTypeLabel;
 
-    // Compressor attachments
-    std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> compThresholdAttachment;
-    std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> compRatioAttachment;
-    std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> compAttackAttachment;
-    std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> compReleaseAttachment;
-    std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> compMakeupAttachment;
-    std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> compBlendAttachment;
-    std::unique_ptr<juce::AudioProcessorValueTreeState::ButtonAttachment> compBypassAttachment;
+    // Compressor 1 attachments
+    std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> comp1ThresholdAttachment;
+    std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> comp1RatioAttachment;
+    std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> comp1AttackAttachment;
+    std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> comp1ReleaseAttachment;
+    std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> comp1MakeupAttachment;
+    std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> comp1BlendAttachment;
+    std::unique_ptr<juce::AudioProcessorValueTreeState::ButtonAttachment> comp1BypassAttachment;
+
+    // Compressor 2 attachments
+    std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> comp2ThresholdAttachment;
+    std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> comp2RatioAttachment;
+    std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> comp2AttackAttachment;
+    std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> comp2ReleaseAttachment;
+    std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> comp2MakeupAttachment;
+    std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> comp2BlendAttachment;
+    std::unique_ptr<juce::AudioProcessorValueTreeState::ButtonAttachment> comp2BypassAttachment;
 
     // Distortion attachments
     std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> distDriveAttachment;

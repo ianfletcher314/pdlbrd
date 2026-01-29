@@ -4,22 +4,63 @@
 PDLBRDAudioProcessorEditor::PDLBRDAudioProcessorEditor(PDLBRDAudioProcessor& p)
     : AudioProcessorEditor(&p), audioProcessor(p)
 {
-    juce::Colour compColour(0xff4ecdc4);   // Cyan
-    juce::Colour distColour(0xffff6b6b);   // Red
-    juce::Colour ampColour(0xffffd93d);    // Yellow/Gold
-    juce::Colour modColour(0xffbb86fc);    // Purple
-    juce::Colour revColour(0xff6bcf7f);    // Green
+    juce::Colour comp1Colour(0xff4ecdc4);   // Cyan
+    juce::Colour distColour(0xffff6b6b);    // Red
+    juce::Colour ampColour(0xffffd93d);     // Yellow/Gold
+    juce::Colour modColour(0xffbb86fc);     // Purple
+    juce::Colour revColour(0xff6bcf7f);     // Green
+    juce::Colour comp2Colour(0xff45b7d1);   // Light blue
 
-    // === COMPRESSOR ===
-    setupSlider(compThresholdSlider, compThresholdLabel, "Thresh", compColour);
-    setupSlider(compRatioSlider, compRatioLabel, "Ratio", compColour);
-    setupSlider(compAttackSlider, compAttackLabel, "Attack", compColour);
-    setupSlider(compReleaseSlider, compReleaseLabel, "Release", compColour);
-    setupSlider(compMakeupSlider, compMakeupLabel, "Makeup", compColour);
-    setupSlider(compBlendSlider, compBlendLabel, "Blend", compColour);
-    compBypassButton.setButtonText("Bypass");
-    compBypassButton.setColour(juce::ToggleButton::textColourId, juce::Colours::white);
-    addAndMakeVisible(compBypassButton);
+    // === SIGNAL CHAIN ===
+    const std::array<juce::Colour, 6> chainColours = { comp1Colour, distColour, ampColour, modColour, revColour, comp2Colour };
+    for (int i = 0; i < PDLBRDAudioProcessor::NUM_EFFECTS; ++i)
+    {
+        chainButtons[i].setColour(juce::TextButton::buttonColourId, juce::Colour(0xff2a2a3e));
+        chainButtons[i].setColour(juce::TextButton::textColourOffId, juce::Colours::white);
+        addAndMakeVisible(chainButtons[i]);
+
+        upButtons[i].setButtonText(juce::CharPointer_UTF8("\xe2\x96\xb2")); // Up arrow
+        upButtons[i].setColour(juce::TextButton::buttonColourId, juce::Colour(0xff3a3a4e));
+        upButtons[i].onClick = [this, i]() {
+            auto order = audioProcessor.getEffectOrder();
+            for (int j = 1; j < PDLBRDAudioProcessor::NUM_EFFECTS; ++j) {
+                if (order[j] == i) {
+                    std::swap(order[j], order[j-1]);
+                    audioProcessor.setEffectOrder(order);
+                    updateChainDisplay();
+                    return;
+                }
+            }
+        };
+        addAndMakeVisible(upButtons[i]);
+
+        downButtons[i].setButtonText(juce::CharPointer_UTF8("\xe2\x96\xbc")); // Down arrow
+        downButtons[i].setColour(juce::TextButton::buttonColourId, juce::Colour(0xff3a3a4e));
+        downButtons[i].onClick = [this, i]() {
+            auto order = audioProcessor.getEffectOrder();
+            for (int j = 0; j < PDLBRDAudioProcessor::NUM_EFFECTS - 1; ++j) {
+                if (order[j] == i) {
+                    std::swap(order[j], order[j+1]);
+                    audioProcessor.setEffectOrder(order);
+                    updateChainDisplay();
+                    return;
+                }
+            }
+        };
+        addAndMakeVisible(downButtons[i]);
+    }
+    updateChainDisplay();
+
+    // === COMPRESSOR 1 ===
+    setupSlider(comp1ThresholdSlider, comp1ThresholdLabel, "Thresh", comp1Colour);
+    setupSlider(comp1RatioSlider, comp1RatioLabel, "Ratio", comp1Colour);
+    setupSlider(comp1AttackSlider, comp1AttackLabel, "Attack", comp1Colour);
+    setupSlider(comp1ReleaseSlider, comp1ReleaseLabel, "Release", comp1Colour);
+    setupSlider(comp1MakeupSlider, comp1MakeupLabel, "Makeup", comp1Colour);
+    setupSlider(comp1BlendSlider, comp1BlendLabel, "Blend", comp1Colour);
+    comp1BypassButton.setButtonText("Bypass");
+    comp1BypassButton.setColour(juce::ToggleButton::textColourId, juce::Colours::white);
+    addAndMakeVisible(comp1BypassButton);
 
     // === DISTORTION ===
     setupSlider(distDriveSlider, distDriveLabel, "Drive", distColour);
@@ -78,16 +119,35 @@ PDLBRDAudioProcessorEditor::PDLBRDAudioProcessorEditor(PDLBRDAudioProcessor& p)
     revBypassButton.setColour(juce::ToggleButton::textColourId, juce::Colours::white);
     addAndMakeVisible(revBypassButton);
 
+    // === COMPRESSOR 2 ===
+    setupSlider(comp2ThresholdSlider, comp2ThresholdLabel, "Thresh", comp2Colour);
+    setupSlider(comp2RatioSlider, comp2RatioLabel, "Ratio", comp2Colour);
+    setupSlider(comp2AttackSlider, comp2AttackLabel, "Attack", comp2Colour);
+    setupSlider(comp2ReleaseSlider, comp2ReleaseLabel, "Release", comp2Colour);
+    setupSlider(comp2MakeupSlider, comp2MakeupLabel, "Makeup", comp2Colour);
+    setupSlider(comp2BlendSlider, comp2BlendLabel, "Blend", comp2Colour);
+    comp2BypassButton.setButtonText("Bypass");
+    comp2BypassButton.setColour(juce::ToggleButton::textColourId, juce::Colours::white);
+    addAndMakeVisible(comp2BypassButton);
+
     // Create attachments
     auto& apvts = audioProcessor.getAPVTS();
 
-    compThresholdAttachment = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(apvts, "compThreshold", compThresholdSlider);
-    compRatioAttachment = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(apvts, "compRatio", compRatioSlider);
-    compAttackAttachment = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(apvts, "compAttack", compAttackSlider);
-    compReleaseAttachment = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(apvts, "compRelease", compReleaseSlider);
-    compMakeupAttachment = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(apvts, "compMakeup", compMakeupSlider);
-    compBlendAttachment = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(apvts, "compBlend", compBlendSlider);
-    compBypassAttachment = std::make_unique<juce::AudioProcessorValueTreeState::ButtonAttachment>(apvts, "compBypass", compBypassButton);
+    comp1ThresholdAttachment = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(apvts, "comp1Threshold", comp1ThresholdSlider);
+    comp1RatioAttachment = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(apvts, "comp1Ratio", comp1RatioSlider);
+    comp1AttackAttachment = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(apvts, "comp1Attack", comp1AttackSlider);
+    comp1ReleaseAttachment = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(apvts, "comp1Release", comp1ReleaseSlider);
+    comp1MakeupAttachment = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(apvts, "comp1Makeup", comp1MakeupSlider);
+    comp1BlendAttachment = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(apvts, "comp1Blend", comp1BlendSlider);
+    comp1BypassAttachment = std::make_unique<juce::AudioProcessorValueTreeState::ButtonAttachment>(apvts, "comp1Bypass", comp1BypassButton);
+
+    comp2ThresholdAttachment = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(apvts, "comp2Threshold", comp2ThresholdSlider);
+    comp2RatioAttachment = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(apvts, "comp2Ratio", comp2RatioSlider);
+    comp2AttackAttachment = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(apvts, "comp2Attack", comp2AttackSlider);
+    comp2ReleaseAttachment = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(apvts, "comp2Release", comp2ReleaseSlider);
+    comp2MakeupAttachment = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(apvts, "comp2Makeup", comp2MakeupSlider);
+    comp2BlendAttachment = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(apvts, "comp2Blend", comp2BlendSlider);
+    comp2BypassAttachment = std::make_unique<juce::AudioProcessorValueTreeState::ButtonAttachment>(apvts, "comp2Bypass", comp2BypassButton);
 
     distDriveAttachment = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(apvts, "distDrive", distDriveSlider);
     distToneAttachment = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(apvts, "distTone", distToneSlider);
@@ -116,10 +176,39 @@ PDLBRDAudioProcessorEditor::PDLBRDAudioProcessorEditor(PDLBRDAudioProcessor& p)
     revTypeAttachment = std::make_unique<juce::AudioProcessorValueTreeState::ComboBoxAttachment>(apvts, "revType", revTypeBox);
     revBypassAttachment = std::make_unique<juce::AudioProcessorValueTreeState::ButtonAttachment>(apvts, "revBypass", revBypassButton);
 
-    setSize(800, 968);
+    setSize(800, 1120);
+    startTimerHz(10);
 }
 
-PDLBRDAudioProcessorEditor::~PDLBRDAudioProcessorEditor() {}
+PDLBRDAudioProcessorEditor::~PDLBRDAudioProcessorEditor()
+{
+    stopTimer();
+}
+
+void PDLBRDAudioProcessorEditor::timerCallback()
+{
+    updateChainDisplay();
+}
+
+void PDLBRDAudioProcessorEditor::updateChainDisplay()
+{
+    auto order = audioProcessor.getEffectOrder();
+    const std::array<juce::Colour, 6> chainColours = {
+        juce::Colour(0xff4ecdc4),  // Comp1 - Cyan
+        juce::Colour(0xffff6b6b),  // Dist - Red
+        juce::Colour(0xffffd93d),  // Amp - Yellow
+        juce::Colour(0xffbb86fc),  // Mod - Purple
+        juce::Colour(0xff6bcf7f),  // Rev - Green
+        juce::Colour(0xff45b7d1)   // Comp2 - Light blue
+    };
+
+    for (int pos = 0; pos < PDLBRDAudioProcessor::NUM_EFFECTS; ++pos)
+    {
+        int effectId = order[pos];
+        chainButtons[pos].setButtonText(audioProcessor.effectNames[effectId]);
+        chainButtons[pos].setColour(juce::TextButton::buttonColourId, chainColours[effectId].darker(0.3f));
+    }
+}
 
 void PDLBRDAudioProcessorEditor::setupSlider(juce::Slider& slider, juce::Label& label,
                                               const juce::String& labelText, juce::Colour colour)
@@ -166,15 +255,22 @@ void PDLBRDAudioProcessorEditor::paint(juce::Graphics& g)
     g.setFont(juce::FontOptions(20.0f).withStyle("Bold"));
     g.drawText("PDLBRD", 15, 8, 200, 24, juce::Justification::left);
 
-    int sectionHeight = 140;
-    int sectionY = 50;
+    // Signal chain section
+    g.setColour(juce::Colour(0xff16213e));
+    g.fillRoundedRectangle(10.0f, 50.0f, getWidth() - 20.0f, 50.0f, 5.0f);
+    g.setColour(juce::Colours::white);
+    g.setFont(juce::FontOptions(11.0f));
+    g.drawText("SIGNAL CHAIN (click arrows to reorder)", 18, 52, 300, 16, juce::Justification::left);
 
-    // Compressor
+    int sectionHeight = 140;
+    int sectionY = 110;
+
+    // Compressor 1
     g.setColour(juce::Colour(0xff16213e));
     g.fillRoundedRectangle(10.0f, (float)sectionY, getWidth() - 20.0f, (float)sectionHeight, 5.0f);
     g.setColour(juce::Colour(0xff4ecdc4));
     g.setFont(juce::FontOptions(13.0f).withStyle("Bold"));
-    g.drawText("COMPRESSOR", 18, sectionY + 5, 120, 16, juce::Justification::left);
+    g.drawText("COMPRESSOR 1", 18, sectionY + 5, 140, 16, juce::Justification::left);
 
     // Distortion
     sectionY += sectionHeight + 8;
@@ -203,6 +299,13 @@ void PDLBRDAudioProcessorEditor::paint(juce::Graphics& g)
     g.fillRoundedRectangle(10.0f, (float)sectionY, getWidth() - 20.0f, (float)sectionHeight, 5.0f);
     g.setColour(juce::Colour(0xff6bcf7f));
     g.drawText("REVERB", 18, sectionY + 5, 120, 16, juce::Justification::left);
+
+    // Compressor 2
+    sectionY += sectionHeight + 8;
+    g.setColour(juce::Colour(0xff16213e));
+    g.fillRoundedRectangle(10.0f, (float)sectionY, getWidth() - 20.0f, (float)sectionHeight, 5.0f);
+    g.setColour(juce::Colour(0xff45b7d1));
+    g.drawText("COMPRESSOR 2", 18, sectionY + 5, 140, 16, juce::Justification::left);
 }
 
 void PDLBRDAudioProcessorEditor::resized()
@@ -212,32 +315,32 @@ void PDLBRDAudioProcessorEditor::resized()
     const int spacing = 68;
     const int sectionHeight = 140;
 
-    auto layoutRow = [&](int y, auto& sliders, auto& labels, auto& typeBox, auto& typeLabel, auto& bypassBtn, int numSliders)
-    {
-        int x = 18;
-        for (int i = 0; i < numSliders; ++i)
-        {
-            labels[i]->setBounds(x, y, knobSize, labelHeight);
-            sliders[i]->setBounds(x, y + labelHeight, knobSize, knobSize);
-            x += spacing;
-        }
-        typeLabel.setBounds(x, y, 75, labelHeight);
-        typeBox.setBounds(x, y + labelHeight + 12, 75, 22);
-        x += 90;
-        bypassBtn.setBounds(x, y + 30, 65, 20);
-    };
+    // Signal chain buttons
+    int chainX = 18;
+    int chainY = 70;
+    int btnWidth = 70;
+    int btnHeight = 22;
+    int arrowSize = 18;
 
-    // Compressor row
-    int y = 75;
-    juce::Slider* compSliders[] = {&compThresholdSlider, &compRatioSlider, &compAttackSlider, &compReleaseSlider, &compMakeupSlider, &compBlendSlider};
-    juce::Label* compLabels[] = {&compThresholdLabel, &compRatioLabel, &compAttackLabel, &compReleaseLabel, &compMakeupLabel, &compBlendLabel};
+    for (int i = 0; i < PDLBRDAudioProcessor::NUM_EFFECTS; ++i)
+    {
+        upButtons[i].setBounds(chainX, chainY - 2, arrowSize, arrowSize);
+        chainButtons[i].setBounds(chainX + arrowSize + 2, chainY, btnWidth, btnHeight);
+        downButtons[i].setBounds(chainX + arrowSize + btnWidth + 4, chainY - 2, arrowSize, arrowSize);
+        chainX += arrowSize + btnWidth + arrowSize + 18;
+    }
+
+    // Compressor 1 row
+    int y = 135;
     int x = 18;
+    juce::Slider* comp1Sliders[] = {&comp1ThresholdSlider, &comp1RatioSlider, &comp1AttackSlider, &comp1ReleaseSlider, &comp1MakeupSlider, &comp1BlendSlider};
+    juce::Label* comp1Labels[] = {&comp1ThresholdLabel, &comp1RatioLabel, &comp1AttackLabel, &comp1ReleaseLabel, &comp1MakeupLabel, &comp1BlendLabel};
     for (int i = 0; i < 6; ++i) {
-        compLabels[i]->setBounds(x, y, knobSize, labelHeight);
-        compSliders[i]->setBounds(x, y + labelHeight, knobSize, knobSize);
+        comp1Labels[i]->setBounds(x, y, knobSize, labelHeight);
+        comp1Sliders[i]->setBounds(x, y + labelHeight, knobSize, knobSize);
         x += spacing;
     }
-    compBypassButton.setBounds(x + 5, y + 30, 65, 20);
+    comp1BypassButton.setBounds(x + 5, y + 30, 65, 20);
 
     // Distortion row
     y += sectionHeight + 8;
@@ -304,4 +407,16 @@ void PDLBRDAudioProcessorEditor::resized()
     revTypeBox.setBounds(x, y + labelHeight + 12, 80, 22);
     x += 95;
     revBypassButton.setBounds(x, y + 30, 65, 20);
+
+    // Compressor 2 row
+    y += sectionHeight + 8;
+    x = 18;
+    juce::Slider* comp2Sliders[] = {&comp2ThresholdSlider, &comp2RatioSlider, &comp2AttackSlider, &comp2ReleaseSlider, &comp2MakeupSlider, &comp2BlendSlider};
+    juce::Label* comp2Labels[] = {&comp2ThresholdLabel, &comp2RatioLabel, &comp2AttackLabel, &comp2ReleaseLabel, &comp2MakeupLabel, &comp2BlendLabel};
+    for (int i = 0; i < 6; ++i) {
+        comp2Labels[i]->setBounds(x, y, knobSize, labelHeight);
+        comp2Sliders[i]->setBounds(x, y + labelHeight, knobSize, knobSize);
+        x += spacing;
+    }
+    comp2BypassButton.setBounds(x + 5, y + 30, 65, 20);
 }

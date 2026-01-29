@@ -41,27 +41,52 @@ public:
     void setStateInformation (const void* data, int sizeInBytes) override;
 
     juce::AudioProcessorValueTreeState& getAPVTS() { return apvts; }
-    float getCompressorGainReduction() const { return compressor.getGainReduction(); }
+    float getCompressor1GainReduction() const { return compressor1.getGainReduction(); }
+    float getCompressor2GainReduction() const { return compressor2.getGainReduction(); }
+
+    // Signal chain ordering
+    static constexpr int NUM_EFFECTS = 6;
+    enum EffectID { COMP1 = 0, DIST, AMP, MOD, REV, COMP2 };
+    const std::array<juce::String, NUM_EFFECTS> effectNames = { "Comp1", "Dist", "Amp", "Mod", "Rev", "Comp2" };
+
+    std::array<int, NUM_EFFECTS> getEffectOrder() const { return effectOrder; }
+    void setEffectOrder(const std::array<int, NUM_EFFECTS>& newOrder);
+    void moveEffectUp(int effectId);
+    void moveEffectDown(int effectId);
 
 private:
     juce::AudioProcessorValueTreeState apvts;
     juce::AudioProcessorValueTreeState::ParameterLayout createParameterLayout();
 
     // DSP
-    Compressor compressor;
+    Compressor compressor1;
+    Compressor compressor2;
     Distortion distortion;
     AmpSim ampSim;
     Modulation modulation;
     Reverb reverb;
 
-    // Compressor
-    std::atomic<float>* compThreshold = nullptr;
-    std::atomic<float>* compRatio = nullptr;
-    std::atomic<float>* compAttack = nullptr;
-    std::atomic<float>* compRelease = nullptr;
-    std::atomic<float>* compMakeup = nullptr;
-    std::atomic<float>* compBlend = nullptr;
-    std::atomic<float>* compBypass = nullptr;
+    // Signal chain order (indices into effect array)
+    std::array<int, NUM_EFFECTS> effectOrder = { COMP1, DIST, AMP, MOD, REV, COMP2 };
+    std::array<EffectModule*, NUM_EFFECTS> effects;
+
+    // Compressor 1
+    std::atomic<float>* comp1Threshold = nullptr;
+    std::atomic<float>* comp1Ratio = nullptr;
+    std::atomic<float>* comp1Attack = nullptr;
+    std::atomic<float>* comp1Release = nullptr;
+    std::atomic<float>* comp1Makeup = nullptr;
+    std::atomic<float>* comp1Blend = nullptr;
+    std::atomic<float>* comp1Bypass = nullptr;
+
+    // Compressor 2
+    std::atomic<float>* comp2Threshold = nullptr;
+    std::atomic<float>* comp2Ratio = nullptr;
+    std::atomic<float>* comp2Attack = nullptr;
+    std::atomic<float>* comp2Release = nullptr;
+    std::atomic<float>* comp2Makeup = nullptr;
+    std::atomic<float>* comp2Blend = nullptr;
+    std::atomic<float>* comp2Bypass = nullptr;
 
     // Distortion
     std::atomic<float>* distDrive = nullptr;
