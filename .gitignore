@@ -1,0 +1,21 @@
+# Build outputs
+Builds/MacOSX/build/
+Builds/VisualStudio*/
+
+# Xcode
+*.xcworkspace
+xcuserdata/
+*.xcuserstate
+DerivedData/
+
+# JuceLibraryCode (auto-generated)
+JuceLibraryCode/
+
+# macOS
+.DS_Store
+*.swp
+*~
+
+# IDE
+.idea/
+.vscode/
