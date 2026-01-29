@@ -97,7 +97,7 @@ juce::AudioProcessorValueTreeState::ParameterLayout PDLBRDAudioProcessor::create
         juce::NormalisableRange<float>(0.0f, 100.0f, 1.0f), 100.0f,
         juce::AudioParameterFloatAttributes().withLabel("%")));
     params.push_back(std::make_unique<juce::AudioParameterBool>(
-        juce::ParameterID("comp1Bypass", 1), "Comp1 Bypass", false));
+        juce::ParameterID("comp1Bypass", 1), "Comp1 Bypass", true));
 
     // === COMPRESSOR 2 ===
     params.push_back(std::make_unique<juce::AudioParameterFloat>(
@@ -144,7 +144,7 @@ juce::AudioProcessorValueTreeState::ParameterLayout PDLBRDAudioProcessor::create
         juce::ParameterID("distType", 1), "Dist Type",
         juce::StringArray{ "TS9", "RAT", "Blues", "Fuzz", "Muff" }, 0));
     params.push_back(std::make_unique<juce::AudioParameterBool>(
-        juce::ParameterID("distBypass", 1), "Dist Bypass", false));
+        juce::ParameterID("distBypass", 1), "Dist Bypass", true));
 
     // === AMP SIM ===
     params.push_back(std::make_unique<juce::AudioParameterFloat>(
@@ -194,7 +194,7 @@ juce::AudioProcessorValueTreeState::ParameterLayout PDLBRDAudioProcessor::create
         juce::ParameterID("modType", 1), "Mod Type",
         juce::StringArray{ "Phaser", "Flanger", "Chorus", "Tremolo", "Vibrato" }, 2));
     params.push_back(std::make_unique<juce::AudioParameterBool>(
-        juce::ParameterID("modBypass", 1), "Mod Bypass", false));
+        juce::ParameterID("modBypass", 1), "Mod Bypass", true));
 
     // === REVERB ===
     params.push_back(std::make_unique<juce::AudioParameterFloat>(
@@ -213,7 +213,7 @@ juce::AudioProcessorValueTreeState::ParameterLayout PDLBRDAudioProcessor::create
         juce::ParameterID("revType", 1), "Rev Type",
         juce::StringArray{ "Spring", "Plate", "Hall" }, 0));
     params.push_back(std::make_unique<juce::AudioParameterBool>(
-        juce::ParameterID("revBypass", 1), "Rev Bypass", false));
+        juce::ParameterID("revBypass", 1), "Rev Bypass", true));
 
     return { params.begin(), params.end() };
 }

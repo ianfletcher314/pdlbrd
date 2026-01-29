@@ -6,6 +6,73 @@
 class PDLBRDAudioProcessorEditor;
 
 //==============================================================================
+// Custom LookAndFeel for Compstortion-style knobs
+//==============================================================================
+class CompstortionLookAndFeel : public juce::LookAndFeel_V4
+{
+public:
+    CompstortionLookAndFeel() {}
+
+    void setAccentColour(juce::Colour c) { accentColour = c; }
+
+    void drawRotarySlider(juce::Graphics& g, int x, int y, int width, int height,
+                          float sliderPosProportional, float, float,
+                          juce::Slider&) override
+    {
+        auto bounds = juce::Rectangle<float>((float)x, (float)y, (float)width, (float)height).reduced(2.0f);
+        float cx = bounds.getCentreX();
+        float cy = bounds.getCentreY();
+        float radius = juce::jmin(bounds.getWidth(), bounds.getHeight()) / 2.0f - 2.0f;
+
+        // Outer ring (knurled edge)
+        g.setColour(juce::Colour(0xff303030));
+        g.fillEllipse(cx - radius, cy - radius, radius * 2.0f, radius * 2.0f);
+
+        // Knurl pattern
+        g.setColour(juce::Colour(0xff404040));
+        int numKnurls = 24;
+        for (int i = 0; i < numKnurls; ++i)
+        {
+            float angle = i * juce::MathConstants<float>::twoPi / numKnurls;
+            float x1 = cx + (radius - 1.0f) * std::cos(angle);
+            float y1 = cy + (radius - 1.0f) * std::sin(angle);
+            float x2 = cx + (radius - 4.0f) * std::cos(angle);
+            float y2 = cy + (radius - 4.0f) * std::sin(angle);
+            g.drawLine(x1, y1, x2, y2, 1.5f);
+        }
+
+        // Main knob body
+        float innerRadius = radius * 0.78f;
+        juce::ColourGradient knobGradient(juce::Colour(0xff555555), cx - innerRadius * 0.5f, cy - innerRadius * 0.5f,
+                                           juce::Colour(0xff252525), cx + innerRadius * 0.5f, cy + innerRadius * 0.5f, true);
+        g.setGradientFill(knobGradient);
+        g.fillEllipse(cx - innerRadius, cy - innerRadius, innerRadius * 2.0f, innerRadius * 2.0f);
+
+        // Ring
+        g.setColour(juce::Colour(0xff606060));
+        g.drawEllipse(cx - innerRadius, cy - innerRadius, innerRadius * 2.0f, innerRadius * 2.0f, 1.0f);
+
+        // Indicator line (7 o'clock to 5 o'clock, clockwise)
+        float indicatorAngle = juce::jmap(sliderPosProportional, 0.0f, 1.0f, -1.047f, 4.189f) + juce::MathConstants<float>::pi;
+        float indicatorLength = innerRadius * 0.65f;
+        float ix1 = cx + (innerRadius * 0.2f) * std::cos(indicatorAngle);
+        float iy1 = cy + (innerRadius * 0.2f) * std::sin(indicatorAngle);
+        float ix2 = cx + indicatorLength * std::cos(indicatorAngle);
+        float iy2 = cy + indicatorLength * std::sin(indicatorAngle);
+        g.setColour(accentColour);
+        g.drawLine(ix1, iy1, ix2, iy2, 3.0f);
+
+        // Center cap
+        float capRadius = innerRadius * 0.25f;
+        g.setColour(juce::Colour(0xff404040));
+        g.fillEllipse(cx - capRadius, cy - capRadius, capRadius * 2.0f, capRadius * 2.0f);
+    }
+
+private:
+    juce::Colour accentColour = juce::Colours::white;
+};
+
+//==============================================================================
 class LevelMeter : public juce::Component
 {
 public:
@@ -22,6 +89,7 @@ class EffectSection : public juce::Component,
 {
 public:
     EffectSection(PDLBRDAudioProcessorEditor& editor, int effectId, const juce::String& name, juce::Colour colour);
+    ~EffectSection() override { for (auto& s : sliders) s.setLookAndFeel(nullptr); }
 
     void paint(juce::Graphics& g) override;
     void resized() override;
@@ -44,6 +112,8 @@ public:
 
     void setNumSliders(int count) { numSliders = count; }
     void setHasTypeBox(bool has) { hasTypeBox = has; }
+    void setIsCompressor(bool isComp) { isCompressor = isComp; }
+    void setGainReduction(float gr) { gainReduction = gr; }
     void setupSlider(int index, const juce::String& labelText);
     void setupTypeBox(const juce::String& labelText, const juce::StringArray& items);
 
@@ -54,6 +124,8 @@ private:
     juce::Colour colour;
     bool isDragOver = false;
 
+    std::unique_ptr<CompstortionLookAndFeel> lookAndFeel;
+
     static constexpr int MAX_SLIDERS = 6;
     std::array<juce::Slider, MAX_SLIDERS> sliders;
     std::array<juce::Label, MAX_SLIDERS> labels;
@@ -63,7 +135,20 @@ private:
     juce::Label typeLabel;
     bool hasTypeBox = false;
 
+    bool isCompressor = false;
+    float gainReduction = 0.0f;
+
     juce::ToggleButton bypassButton;
+};
+
+//==============================================================================
+// Scrollable content component that holds all the effect sections
+//==============================================================================
+class PedalboardContent : public juce::Component
+{
+public:
+    PedalboardContent() {}
+    void paint(juce::Graphics& g) override;
 };
 
 //==============================================================================
@@ -84,6 +169,10 @@ public:
 
 private:
     PDLBRDAudioProcessor& audioProcessor;
+
+    // Scrollable viewport
+    juce::Viewport viewport;
+    PedalboardContent contentComponent;
 
     // Level meters
     LevelMeter inputMeter, outputMeter;
