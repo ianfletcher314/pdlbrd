@@ -2,309 +2,23 @@
 #include "PluginEditor.h"
 
 //==============================================================================
-// ChainSlot implementation
+// EffectSection implementation
 //==============================================================================
-ChainSlot::ChainSlot(int index, std::function<void(int, int)> onReorder)
-    : slotIndex(index), reorderCallback(onReorder)
+EffectSection::EffectSection(PDLBRDAudioProcessorEditor& editor, int id, const juce::String& n, juce::Colour c)
+    : parentEditor(editor), effectId(id), name(n), colour(c)
 {
+    bypassButton.setButtonText("Bypass");
+    bypassButton.setColour(juce::ToggleButton::textColourId, juce::Colours::white);
+    addAndMakeVisible(bypassButton);
 }
 
-void ChainSlot::paint(juce::Graphics& g)
+void EffectSection::setupSlider(int index, const juce::String& labelText)
 {
-    auto bounds = getLocalBounds().reduced(2);
+    if (index >= MAX_SLIDERS) return;
 
-    // Draw background
-    if (isDragOver)
-    {
-        g.setColour(juce::Colours::white.withAlpha(0.3f));
-        g.fillRoundedRectangle(bounds.toFloat(), 6.0f);
-    }
+    auto& slider = sliders[index];
+    auto& label = labels[index];
 
-    g.setColour(effectColour.darker(0.2f));
-    g.fillRoundedRectangle(bounds.toFloat(), 6.0f);
-
-    // Draw border
-    g.setColour(effectColour);
-    g.drawRoundedRectangle(bounds.toFloat(), 6.0f, 2.0f);
-
-    // Draw text
-    g.setColour(juce::Colours::white);
-    g.setFont(juce::FontOptions(12.0f).withStyle("Bold"));
-    g.drawText(effectName, bounds, juce::Justification::centred);
-
-    // Draw drag handle dots
-    g.setColour(juce::Colours::white.withAlpha(0.5f));
-    int dotY = bounds.getCentreY();
-    for (int i = 0; i < 3; ++i)
-    {
-        g.fillEllipse((float)(bounds.getX() + 6), (float)(dotY - 6 + i * 6), 3.0f, 3.0f);
-    }
-}
-
-void ChainSlot::mouseDown(const juce::MouseEvent& e)
-{
-    juce::ignoreUnused(e);
-}
-
-void ChainSlot::mouseDrag(const juce::MouseEvent& e)
-{
-    if (e.getDistanceFromDragStart() > 5)
-    {
-        if (auto* container = juce::DragAndDropContainer::findParentDragContainerFor(this))
-        {
-            // Create a snapshot image for dragging
-            auto snapshot = createComponentSnapshot(getLocalBounds());
-            juce::ScaledImage scaledImage(snapshot, 1.0);
-
-            container->startDragging(juce::String(slotIndex), this, scaledImage, true);
-        }
-    }
-}
-
-bool ChainSlot::isInterestedInDragSource(const SourceDetails& details)
-{
-    return details.description.toString().containsOnly("0123456789");
-}
-
-void ChainSlot::itemDragEnter(const SourceDetails& details)
-{
-    juce::ignoreUnused(details);
-    isDragOver = true;
-    repaint();
-}
-
-void ChainSlot::itemDragExit(const SourceDetails& details)
-{
-    juce::ignoreUnused(details);
-    isDragOver = false;
-    repaint();
-}
-
-void ChainSlot::itemDropped(const SourceDetails& details)
-{
-    isDragOver = false;
-    int fromSlot = details.description.toString().getIntValue();
-    if (fromSlot != slotIndex && reorderCallback)
-    {
-        reorderCallback(fromSlot, slotIndex);
-    }
-    repaint();
-}
-
-void ChainSlot::setEffectId(int id) { effectId = id; }
-void ChainSlot::setEffectName(const juce::String& name) { effectName = name; repaint(); }
-void ChainSlot::setEffectColour(juce::Colour c) { effectColour = c; repaint(); }
-
-//==============================================================================
-// PDLBRDAudioProcessorEditor implementation
-//==============================================================================
-PDLBRDAudioProcessorEditor::PDLBRDAudioProcessorEditor(PDLBRDAudioProcessor& p)
-    : AudioProcessorEditor(&p), audioProcessor(p)
-{
-    juce::Colour comp1Colour(0xff4ecdc4);   // Cyan
-    juce::Colour distColour(0xffff6b6b);    // Red
-    juce::Colour ampColour(0xffffd93d);     // Yellow/Gold
-    juce::Colour modColour(0xffbb86fc);     // Purple
-    juce::Colour revColour(0xff6bcf7f);     // Green
-    juce::Colour comp2Colour(0xff45b7d1);   // Light blue
-
-    // === SIGNAL CHAIN (Drag and Drop) ===
-    for (int i = 0; i < PDLBRDAudioProcessor::NUM_EFFECTS; ++i)
-    {
-        chainSlots[i] = std::make_unique<ChainSlot>(i, [this](int from, int to) {
-            handleReorder(from, to);
-        });
-        addAndMakeVisible(chainSlots[i].get());
-    }
-    updateChainDisplay();
-
-    // === COMPRESSOR 1 ===
-    setupSlider(comp1ThresholdSlider, comp1ThresholdLabel, "Thresh", comp1Colour);
-    setupSlider(comp1RatioSlider, comp1RatioLabel, "Ratio", comp1Colour);
-    setupSlider(comp1AttackSlider, comp1AttackLabel, "Attack", comp1Colour);
-    setupSlider(comp1ReleaseSlider, comp1ReleaseLabel, "Release", comp1Colour);
-    setupSlider(comp1MakeupSlider, comp1MakeupLabel, "Makeup", comp1Colour);
-    setupSlider(comp1BlendSlider, comp1BlendLabel, "Blend", comp1Colour);
-    comp1BypassButton.setButtonText("Bypass");
-    comp1BypassButton.setColour(juce::ToggleButton::textColourId, juce::Colours::white);
-    addAndMakeVisible(comp1BypassButton);
-
-    // === DISTORTION ===
-    setupSlider(distDriveSlider, distDriveLabel, "Drive", distColour);
-    setupSlider(distToneSlider, distToneLabel, "Tone", distColour);
-    setupSlider(distLevelSlider, distLevelLabel, "Level", distColour);
-    setupComboBox(distTypeBox, distTypeLabel, "Type", distColour);
-    distTypeBox.addItem("TS9", 1);
-    distTypeBox.addItem("RAT", 2);
-    distTypeBox.addItem("Blues", 3);
-    distTypeBox.addItem("Fuzz", 4);
-    distTypeBox.addItem("Muff", 5);
-    distBypassButton.setButtonText("Bypass");
-    distBypassButton.setColour(juce::ToggleButton::textColourId, juce::Colours::white);
-    addAndMakeVisible(distBypassButton);
-
-    // === AMP SIM ===
-    setupSlider(ampGainSlider, ampGainLabel, "Gain", ampColour);
-    setupSlider(ampBassSlider, ampBassLabel, "Bass", ampColour);
-    setupSlider(ampMidSlider, ampMidLabel, "Mid", ampColour);
-    setupSlider(ampMidFreqSlider, ampMidFreqLabel, "MidFrq", ampColour);
-    setupSlider(ampTrebleSlider, ampTrebleLabel, "Treble", ampColour);
-    setupSlider(ampMasterSlider, ampMasterLabel, "Master", ampColour);
-    setupComboBox(ampTypeBox, ampTypeLabel, "Type", ampColour);
-    ampTypeBox.addItem("Clean", 1);
-    ampTypeBox.addItem("Crunch", 2);
-    ampTypeBox.addItem("Lead", 3);
-    ampTypeBox.addItem("Modern", 4);
-    ampTypeBox.addItem("Vintage", 5);
-    ampBypassButton.setButtonText("Bypass");
-    ampBypassButton.setColour(juce::ToggleButton::textColourId, juce::Colours::white);
-    addAndMakeVisible(ampBypassButton);
-
-    // === MODULATION ===
-    setupSlider(modRateSlider, modRateLabel, "Rate", modColour);
-    setupSlider(modDepthSlider, modDepthLabel, "Depth", modColour);
-    setupSlider(modBlendSlider, modBlendLabel, "Blend", modColour);
-    setupComboBox(modTypeBox, modTypeLabel, "Type", modColour);
-    modTypeBox.addItem("Phaser", 1);
-    modTypeBox.addItem("Flanger", 2);
-    modTypeBox.addItem("Chorus", 3);
-    modTypeBox.addItem("Tremolo", 4);
-    modTypeBox.addItem("Vibrato", 5);
-    modBypassButton.setButtonText("Bypass");
-    modBypassButton.setColour(juce::ToggleButton::textColourId, juce::Colours::white);
-    addAndMakeVisible(modBypassButton);
-
-    // === REVERB ===
-    setupSlider(revDecaySlider, revDecayLabel, "Decay", revColour);
-    setupSlider(revToneSlider, revToneLabel, "Tone", revColour);
-    setupSlider(revBlendSlider, revBlendLabel, "Blend", revColour);
-    setupComboBox(revTypeBox, revTypeLabel, "Type", revColour);
-    revTypeBox.addItem("Spring", 1);
-    revTypeBox.addItem("Plate", 2);
-    revTypeBox.addItem("Hall", 3);
-    revBypassButton.setButtonText("Bypass");
-    revBypassButton.setColour(juce::ToggleButton::textColourId, juce::Colours::white);
-    addAndMakeVisible(revBypassButton);
-
-    // === COMPRESSOR 2 ===
-    setupSlider(comp2ThresholdSlider, comp2ThresholdLabel, "Thresh", comp2Colour);
-    setupSlider(comp2RatioSlider, comp2RatioLabel, "Ratio", comp2Colour);
-    setupSlider(comp2AttackSlider, comp2AttackLabel, "Attack", comp2Colour);
-    setupSlider(comp2ReleaseSlider, comp2ReleaseLabel, "Release", comp2Colour);
-    setupSlider(comp2MakeupSlider, comp2MakeupLabel, "Makeup", comp2Colour);
-    setupSlider(comp2BlendSlider, comp2BlendLabel, "Blend", comp2Colour);
-    comp2BypassButton.setButtonText("Bypass");
-    comp2BypassButton.setColour(juce::ToggleButton::textColourId, juce::Colours::white);
-    addAndMakeVisible(comp2BypassButton);
-
-    // Create attachments
-    auto& apvts = audioProcessor.getAPVTS();
-
-    comp1ThresholdAttachment = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(apvts, "comp1Threshold", comp1ThresholdSlider);
-    comp1RatioAttachment = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(apvts, "comp1Ratio", comp1RatioSlider);
-    comp1AttackAttachment = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(apvts, "comp1Attack", comp1AttackSlider);
-    comp1ReleaseAttachment = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(apvts, "comp1Release", comp1ReleaseSlider);
-    comp1MakeupAttachment = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(apvts, "comp1Makeup", comp1MakeupSlider);
-    comp1BlendAttachment = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(apvts, "comp1Blend", comp1BlendSlider);
-    comp1BypassAttachment = std::make_unique<juce::AudioProcessorValueTreeState::ButtonAttachment>(apvts, "comp1Bypass", comp1BypassButton);
-
-    comp2ThresholdAttachment = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(apvts, "comp2Threshold", comp2ThresholdSlider);
-    comp2RatioAttachment = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(apvts, "comp2Ratio", comp2RatioSlider);
-    comp2AttackAttachment = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(apvts, "comp2Attack", comp2AttackSlider);
-    comp2ReleaseAttachment = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(apvts, "comp2Release", comp2ReleaseSlider);
-    comp2MakeupAttachment = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(apvts, "comp2Makeup", comp2MakeupSlider);
-    comp2BlendAttachment = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(apvts, "comp2Blend", comp2BlendSlider);
-    comp2BypassAttachment = std::make_unique<juce::AudioProcessorValueTreeState::ButtonAttachment>(apvts, "comp2Bypass", comp2BypassButton);
-
-    distDriveAttachment = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(apvts, "distDrive", distDriveSlider);
-    distToneAttachment = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(apvts, "distTone", distToneSlider);
-    distLevelAttachment = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(apvts, "distLevel", distLevelSlider);
-    distTypeAttachment = std::make_unique<juce::AudioProcessorValueTreeState::ComboBoxAttachment>(apvts, "distType", distTypeBox);
-    distBypassAttachment = std::make_unique<juce::AudioProcessorValueTreeState::ButtonAttachment>(apvts, "distBypass", distBypassButton);
-
-    ampGainAttachment = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(apvts, "ampGain", ampGainSlider);
-    ampBassAttachment = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(apvts, "ampBass", ampBassSlider);
-    ampMidAttachment = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(apvts, "ampMid", ampMidSlider);
-    ampMidFreqAttachment = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(apvts, "ampMidFreq", ampMidFreqSlider);
-    ampTrebleAttachment = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(apvts, "ampTreble", ampTrebleSlider);
-    ampMasterAttachment = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(apvts, "ampMaster", ampMasterSlider);
-    ampTypeAttachment = std::make_unique<juce::AudioProcessorValueTreeState::ComboBoxAttachment>(apvts, "ampType", ampTypeBox);
-    ampBypassAttachment = std::make_unique<juce::AudioProcessorValueTreeState::ButtonAttachment>(apvts, "ampBypass", ampBypassButton);
-
-    modRateAttachment = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(apvts, "modRate", modRateSlider);
-    modDepthAttachment = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(apvts, "modDepth", modDepthSlider);
-    modBlendAttachment = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(apvts, "modBlend", modBlendSlider);
-    modTypeAttachment = std::make_unique<juce::AudioProcessorValueTreeState::ComboBoxAttachment>(apvts, "modType", modTypeBox);
-    modBypassAttachment = std::make_unique<juce::AudioProcessorValueTreeState::ButtonAttachment>(apvts, "modBypass", modBypassButton);
-
-    revDecayAttachment = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(apvts, "revDecay", revDecaySlider);
-    revToneAttachment = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(apvts, "revTone", revToneSlider);
-    revBlendAttachment = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(apvts, "revBlend", revBlendSlider);
-    revTypeAttachment = std::make_unique<juce::AudioProcessorValueTreeState::ComboBoxAttachment>(apvts, "revType", revTypeBox);
-    revBypassAttachment = std::make_unique<juce::AudioProcessorValueTreeState::ButtonAttachment>(apvts, "revBypass", revBypassButton);
-
-    setSize(800, 1120);
-    startTimerHz(10);
-}
-
-PDLBRDAudioProcessorEditor::~PDLBRDAudioProcessorEditor()
-{
-    stopTimer();
-}
-
-void PDLBRDAudioProcessorEditor::timerCallback()
-{
-    updateChainDisplay();
-}
-
-void PDLBRDAudioProcessorEditor::handleReorder(int fromSlot, int toSlot)
-{
-    auto order = audioProcessor.getEffectOrder();
-
-    // Get the effect that's being moved
-    int movingEffect = order[fromSlot];
-
-    // Remove from old position and insert at new position
-    if (fromSlot < toSlot)
-    {
-        for (int i = fromSlot; i < toSlot; ++i)
-            order[i] = order[i + 1];
-    }
-    else
-    {
-        for (int i = fromSlot; i > toSlot; --i)
-            order[i] = order[i - 1];
-    }
-    order[toSlot] = movingEffect;
-
-    audioProcessor.setEffectOrder(order);
-    updateChainDisplay();
-}
-
-void PDLBRDAudioProcessorEditor::updateChainDisplay()
-{
-    auto order = audioProcessor.getEffectOrder();
-    const std::array<juce::Colour, 6> chainColours = {
-        juce::Colour(0xff4ecdc4),  // Comp1 - Cyan
-        juce::Colour(0xffff6b6b),  // Dist - Red
-        juce::Colour(0xffffd93d),  // Amp - Yellow
-        juce::Colour(0xffbb86fc),  // Mod - Purple
-        juce::Colour(0xff6bcf7f),  // Rev - Green
-        juce::Colour(0xff45b7d1)   // Comp2 - Light blue
-    };
-
-    for (int pos = 0; pos < PDLBRDAudioProcessor::NUM_EFFECTS; ++pos)
-    {
-        int effectId = order[pos];
-        chainSlots[pos]->setEffectId(effectId);
-        chainSlots[pos]->setEffectName(audioProcessor.effectNames[effectId]);
-        chainSlots[pos]->setEffectColour(chainColours[effectId]);
-    }
-}
-
-void PDLBRDAudioProcessorEditor::setupSlider(juce::Slider& slider, juce::Label& label,
-                                              const juce::String& labelText, juce::Colour colour)
-{
     slider.setSliderStyle(juce::Slider::RotaryHorizontalVerticalDrag);
     slider.setTextBoxStyle(juce::Slider::TextBoxBelow, false, 50, 14);
     slider.setColour(juce::Slider::rotarySliderFillColourId, colour);
@@ -319,21 +33,329 @@ void PDLBRDAudioProcessorEditor::setupSlider(juce::Slider& slider, juce::Label& 
     label.setColour(juce::Label::textColourId, juce::Colours::white);
     label.setFont(juce::FontOptions(10.0f));
     addAndMakeVisible(label);
+
+    if (index >= numSliders)
+        numSliders = index + 1;
 }
 
-void PDLBRDAudioProcessorEditor::setupComboBox(juce::ComboBox& box, juce::Label& label,
-                                                const juce::String& labelText, juce::Colour colour)
+void EffectSection::setupTypeBox(const juce::String& labelText, const juce::StringArray& items)
 {
-    box.setColour(juce::ComboBox::backgroundColourId, juce::Colour(0xff2a2a3e));
-    box.setColour(juce::ComboBox::textColourId, juce::Colours::white);
-    box.setColour(juce::ComboBox::outlineColourId, colour);
-    addAndMakeVisible(box);
+    typeBox.setColour(juce::ComboBox::backgroundColourId, juce::Colour(0xff2a2a3e));
+    typeBox.setColour(juce::ComboBox::textColourId, juce::Colours::white);
+    typeBox.setColour(juce::ComboBox::outlineColourId, colour);
+    for (int i = 0; i < items.size(); ++i)
+        typeBox.addItem(items[i], i + 1);
+    addAndMakeVisible(typeBox);
 
-    label.setText(labelText, juce::dontSendNotification);
-    label.setJustificationType(juce::Justification::centred);
-    label.setColour(juce::Label::textColourId, juce::Colours::white);
-    label.setFont(juce::FontOptions(10.0f));
-    addAndMakeVisible(label);
+    typeLabel.setText(labelText, juce::dontSendNotification);
+    typeLabel.setJustificationType(juce::Justification::centred);
+    typeLabel.setColour(juce::Label::textColourId, juce::Colours::white);
+    typeLabel.setFont(juce::FontOptions(10.0f));
+    addAndMakeVisible(typeLabel);
+
+    hasTypeBox = true;
+}
+
+void EffectSection::paint(juce::Graphics& g)
+{
+    auto bounds = getLocalBounds().reduced(2);
+
+    // Draw background
+    g.setColour(juce::Colour(0xff16213e));
+    g.fillRoundedRectangle(bounds.toFloat(), 8.0f);
+
+    // Draw highlight if dragging over
+    if (isDragOver)
+    {
+        g.setColour(juce::Colours::white.withAlpha(0.15f));
+        g.fillRoundedRectangle(bounds.toFloat(), 8.0f);
+    }
+
+    // Draw colored accent bar at top
+    g.setColour(colour);
+    g.fillRoundedRectangle(bounds.getX() + 2.0f, bounds.getY() + 2.0f,
+                           bounds.getWidth() - 4.0f, 4.0f, 2.0f);
+
+    // Draw title
+    g.setColour(colour);
+    g.setFont(juce::FontOptions(13.0f).withStyle("Bold"));
+    g.drawText(name, 18, 10, 200, 20, juce::Justification::left);
+
+    // Draw drag indicator (6 dots in 2 columns)
+    g.setColour(juce::Colours::white.withAlpha(0.4f));
+    int dotX = bounds.getRight() - 20;
+    int dotY = 14;
+    for (int row = 0; row < 3; ++row)
+    {
+        g.fillEllipse((float)dotX, (float)(dotY + row * 6), 3.0f, 3.0f);
+        g.fillEllipse((float)(dotX + 6), (float)(dotY + row * 6), 3.0f, 3.0f);
+    }
+}
+
+void EffectSection::resized()
+{
+    const int knobSize = 55;
+    const int labelHeight = 14;
+    const int spacing = 68;
+    const int startY = 30;
+    int x = 18;
+
+    for (int i = 0; i < numSliders; ++i)
+    {
+        labels[i].setBounds(x, startY, knobSize, labelHeight);
+        sliders[i].setBounds(x, startY + labelHeight, knobSize, knobSize);
+        x += spacing;
+    }
+
+    if (hasTypeBox)
+    {
+        typeLabel.setBounds(x, startY, 80, labelHeight);
+        typeBox.setBounds(x, startY + labelHeight + 12, 80, 22);
+        x += 95;
+    }
+
+    bypassButton.setBounds(x + 5, startY + 25, 65, 20);
+}
+
+void EffectSection::mouseDown(const juce::MouseEvent& e)
+{
+    juce::ignoreUnused(e);
+}
+
+void EffectSection::mouseDrag(const juce::MouseEvent& e)
+{
+    if (e.getDistanceFromDragStart() > 10)
+    {
+        if (auto* container = juce::DragAndDropContainer::findParentDragContainerFor(this))
+        {
+            // Create a snapshot for dragging
+            auto snapshot = createComponentSnapshot(getLocalBounds());
+            snapshot = snapshot.rescaled(snapshot.getWidth() / 2, snapshot.getHeight() / 2);
+            juce::ScaledImage scaledImage(snapshot, 2.0);
+
+            container->startDragging(juce::String(effectId), this, scaledImage, true, nullptr, &e.source);
+        }
+    }
+}
+
+bool EffectSection::isInterestedInDragSource(const SourceDetails& details)
+{
+    // Accept drops from other effect sections
+    return details.description.toString().containsOnly("0123456789") &&
+           details.description.toString().getIntValue() != effectId;
+}
+
+void EffectSection::itemDragEnter(const SourceDetails& details)
+{
+    juce::ignoreUnused(details);
+    isDragOver = true;
+    repaint();
+}
+
+void EffectSection::itemDragExit(const SourceDetails& details)
+{
+    juce::ignoreUnused(details);
+    isDragOver = false;
+    repaint();
+}
+
+void EffectSection::itemDropped(const SourceDetails& details)
+{
+    isDragOver = false;
+    int fromEffectId = details.description.toString().getIntValue();
+    parentEditor.handleReorder(fromEffectId, effectId);
+    repaint();
+}
+
+//==============================================================================
+// PDLBRDAudioProcessorEditor implementation
+//==============================================================================
+PDLBRDAudioProcessorEditor::PDLBRDAudioProcessorEditor(PDLBRDAudioProcessor& p)
+    : AudioProcessorEditor(&p), audioProcessor(p)
+{
+    createSections();
+
+    auto& apvts = audioProcessor.getAPVTS();
+
+    // Comp1 attachments
+    auto& comp1 = *sections[PDLBRDAudioProcessor::COMP1];
+    comp1ThresholdAttachment = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(apvts, "comp1Threshold", comp1.getSlider(0));
+    comp1RatioAttachment = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(apvts, "comp1Ratio", comp1.getSlider(1));
+    comp1AttackAttachment = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(apvts, "comp1Attack", comp1.getSlider(2));
+    comp1ReleaseAttachment = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(apvts, "comp1Release", comp1.getSlider(3));
+    comp1MakeupAttachment = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(apvts, "comp1Makeup", comp1.getSlider(4));
+    comp1BlendAttachment = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(apvts, "comp1Blend", comp1.getSlider(5));
+    comp1BypassAttachment = std::make_unique<juce::AudioProcessorValueTreeState::ButtonAttachment>(apvts, "comp1Bypass", comp1.getBypassButton());
+
+    // Distortion attachments
+    auto& dist = *sections[PDLBRDAudioProcessor::DIST];
+    distDriveAttachment = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(apvts, "distDrive", dist.getSlider(0));
+    distToneAttachment = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(apvts, "distTone", dist.getSlider(1));
+    distLevelAttachment = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(apvts, "distLevel", dist.getSlider(2));
+    distTypeAttachment = std::make_unique<juce::AudioProcessorValueTreeState::ComboBoxAttachment>(apvts, "distType", dist.getTypeBox());
+    distBypassAttachment = std::make_unique<juce::AudioProcessorValueTreeState::ButtonAttachment>(apvts, "distBypass", dist.getBypassButton());
+
+    // Amp attachments
+    auto& amp = *sections[PDLBRDAudioProcessor::AMP];
+    ampGainAttachment = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(apvts, "ampGain", amp.getSlider(0));
+    ampBassAttachment = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(apvts, "ampBass", amp.getSlider(1));
+    ampMidAttachment = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(apvts, "ampMid", amp.getSlider(2));
+    ampMidFreqAttachment = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(apvts, "ampMidFreq", amp.getSlider(3));
+    ampTrebleAttachment = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(apvts, "ampTreble", amp.getSlider(4));
+    ampMasterAttachment = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(apvts, "ampMaster", amp.getSlider(5));
+    ampTypeAttachment = std::make_unique<juce::AudioProcessorValueTreeState::ComboBoxAttachment>(apvts, "ampType", amp.getTypeBox());
+    ampBypassAttachment = std::make_unique<juce::AudioProcessorValueTreeState::ButtonAttachment>(apvts, "ampBypass", amp.getBypassButton());
+
+    // Modulation attachments
+    auto& mod = *sections[PDLBRDAudioProcessor::MOD];
+    modRateAttachment = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(apvts, "modRate", mod.getSlider(0));
+    modDepthAttachment = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(apvts, "modDepth", mod.getSlider(1));
+    modBlendAttachment = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(apvts, "modBlend", mod.getSlider(2));
+    modTypeAttachment = std::make_unique<juce::AudioProcessorValueTreeState::ComboBoxAttachment>(apvts, "modType", mod.getTypeBox());
+    modBypassAttachment = std::make_unique<juce::AudioProcessorValueTreeState::ButtonAttachment>(apvts, "modBypass", mod.getBypassButton());
+
+    // Reverb attachments
+    auto& rev = *sections[PDLBRDAudioProcessor::REV];
+    revDecayAttachment = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(apvts, "revDecay", rev.getSlider(0));
+    revToneAttachment = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(apvts, "revTone", rev.getSlider(1));
+    revBlendAttachment = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(apvts, "revBlend", rev.getSlider(2));
+    revTypeAttachment = std::make_unique<juce::AudioProcessorValueTreeState::ComboBoxAttachment>(apvts, "revType", rev.getTypeBox());
+    revBypassAttachment = std::make_unique<juce::AudioProcessorValueTreeState::ButtonAttachment>(apvts, "revBypass", rev.getBypassButton());
+
+    // Comp2 attachments
+    auto& comp2 = *sections[PDLBRDAudioProcessor::COMP2];
+    comp2ThresholdAttachment = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(apvts, "comp2Threshold", comp2.getSlider(0));
+    comp2RatioAttachment = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(apvts, "comp2Ratio", comp2.getSlider(1));
+    comp2AttackAttachment = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(apvts, "comp2Attack", comp2.getSlider(2));
+    comp2ReleaseAttachment = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(apvts, "comp2Release", comp2.getSlider(3));
+    comp2MakeupAttachment = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(apvts, "comp2Makeup", comp2.getSlider(4));
+    comp2BlendAttachment = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(apvts, "comp2Blend", comp2.getSlider(5));
+    comp2BypassAttachment = std::make_unique<juce::AudioProcessorValueTreeState::ButtonAttachment>(apvts, "comp2Bypass", comp2.getBypassButton());
+
+    setSize(800, 940);
+}
+
+PDLBRDAudioProcessorEditor::~PDLBRDAudioProcessorEditor()
+{
+}
+
+void PDLBRDAudioProcessorEditor::createSections()
+{
+    // Compressor 1
+    sections[PDLBRDAudioProcessor::COMP1] = std::make_unique<EffectSection>(
+        *this, PDLBRDAudioProcessor::COMP1, "COMPRESSOR 1", juce::Colour(0xff4ecdc4));
+    auto& comp1 = *sections[PDLBRDAudioProcessor::COMP1];
+    comp1.setupSlider(0, "Thresh");
+    comp1.setupSlider(1, "Ratio");
+    comp1.setupSlider(2, "Attack");
+    comp1.setupSlider(3, "Release");
+    comp1.setupSlider(4, "Makeup");
+    comp1.setupSlider(5, "Blend");
+    addAndMakeVisible(comp1);
+
+    // Distortion
+    sections[PDLBRDAudioProcessor::DIST] = std::make_unique<EffectSection>(
+        *this, PDLBRDAudioProcessor::DIST, "DISTORTION", juce::Colour(0xffff6b6b));
+    auto& dist = *sections[PDLBRDAudioProcessor::DIST];
+    dist.setupSlider(0, "Drive");
+    dist.setupSlider(1, "Tone");
+    dist.setupSlider(2, "Level");
+    dist.setupTypeBox("Type", {"TS9", "RAT", "Blues", "Fuzz", "Muff"});
+    addAndMakeVisible(dist);
+
+    // Amp Sim
+    sections[PDLBRDAudioProcessor::AMP] = std::make_unique<EffectSection>(
+        *this, PDLBRDAudioProcessor::AMP, "AMP SIM", juce::Colour(0xffffd93d));
+    auto& amp = *sections[PDLBRDAudioProcessor::AMP];
+    amp.setupSlider(0, "Gain");
+    amp.setupSlider(1, "Bass");
+    amp.setupSlider(2, "Mid");
+    amp.setupSlider(3, "MidFrq");
+    amp.setupSlider(4, "Treble");
+    amp.setupSlider(5, "Master");
+    amp.setupTypeBox("Type", {"Clean", "Crunch", "Lead", "Modern", "Vintage"});
+    addAndMakeVisible(amp);
+
+    // Modulation
+    sections[PDLBRDAudioProcessor::MOD] = std::make_unique<EffectSection>(
+        *this, PDLBRDAudioProcessor::MOD, "MODULATION", juce::Colour(0xffbb86fc));
+    auto& mod = *sections[PDLBRDAudioProcessor::MOD];
+    mod.setupSlider(0, "Rate");
+    mod.setupSlider(1, "Depth");
+    mod.setupSlider(2, "Blend");
+    mod.setupTypeBox("Type", {"Phaser", "Flanger", "Chorus", "Tremolo", "Vibrato"});
+    addAndMakeVisible(mod);
+
+    // Reverb
+    sections[PDLBRDAudioProcessor::REV] = std::make_unique<EffectSection>(
+        *this, PDLBRDAudioProcessor::REV, "REVERB", juce::Colour(0xff6bcf7f));
+    auto& rev = *sections[PDLBRDAudioProcessor::REV];
+    rev.setupSlider(0, "Decay");
+    rev.setupSlider(1, "Tone");
+    rev.setupSlider(2, "Blend");
+    rev.setupTypeBox("Type", {"Spring", "Plate", "Hall"});
+    addAndMakeVisible(rev);
+
+    // Compressor 2
+    sections[PDLBRDAudioProcessor::COMP2] = std::make_unique<EffectSection>(
+        *this, PDLBRDAudioProcessor::COMP2, "COMPRESSOR 2", juce::Colour(0xff45b7d1));
+    auto& comp2 = *sections[PDLBRDAudioProcessor::COMP2];
+    comp2.setupSlider(0, "Thresh");
+    comp2.setupSlider(1, "Ratio");
+    comp2.setupSlider(2, "Attack");
+    comp2.setupSlider(3, "Release");
+    comp2.setupSlider(4, "Makeup");
+    comp2.setupSlider(5, "Blend");
+    addAndMakeVisible(comp2);
+}
+
+void PDLBRDAudioProcessorEditor::handleReorder(int fromEffectId, int toEffectId)
+{
+    auto order = audioProcessor.getEffectOrder();
+
+    // Find positions of both effects
+    int fromPos = -1, toPos = -1;
+    for (int i = 0; i < PDLBRDAudioProcessor::NUM_EFFECTS; ++i)
+    {
+        if (order[i] == fromEffectId) fromPos = i;
+        if (order[i] == toEffectId) toPos = i;
+    }
+
+    if (fromPos < 0 || toPos < 0 || fromPos == toPos)
+        return;
+
+    // Move the effect
+    int movingEffect = order[fromPos];
+    if (fromPos < toPos)
+    {
+        for (int i = fromPos; i < toPos; ++i)
+            order[i] = order[i + 1];
+    }
+    else
+    {
+        for (int i = fromPos; i > toPos; --i)
+            order[i] = order[i - 1];
+    }
+    order[toPos] = movingEffect;
+
+    audioProcessor.setEffectOrder(order);
+    layoutSections();
+    repaint();
+}
+
+void PDLBRDAudioProcessorEditor::layoutSections()
+{
+    auto order = audioProcessor.getEffectOrder();
+    const int sectionHeight = 140;
+    const int sectionGap = 8;
+    int y = 50;
+
+    for (int i = 0; i < PDLBRDAudioProcessor::NUM_EFFECTS; ++i)
+    {
+        int effectId = order[i];
+        sections[effectId]->setBounds(10, y, getWidth() - 20, sectionHeight);
+        y += sectionHeight + sectionGap;
+    }
 }
 
 void PDLBRDAudioProcessorEditor::paint(juce::Graphics& g)
@@ -347,165 +369,12 @@ void PDLBRDAudioProcessorEditor::paint(juce::Graphics& g)
     g.setFont(juce::FontOptions(20.0f).withStyle("Bold"));
     g.drawText("PDLBRD", 15, 8, 200, 24, juce::Justification::left);
 
-    // Signal chain section
-    g.setColour(juce::Colour(0xff16213e));
-    g.fillRoundedRectangle(10.0f, 50.0f, getWidth() - 20.0f, 50.0f, 5.0f);
-    g.setColour(juce::Colours::white);
     g.setFont(juce::FontOptions(11.0f));
-    g.drawText("SIGNAL CHAIN - drag to reorder", 18, 52, 300, 16, juce::Justification::left);
-
-    int sectionHeight = 140;
-    int sectionY = 110;
-
-    // Compressor 1
-    g.setColour(juce::Colour(0xff16213e));
-    g.fillRoundedRectangle(10.0f, (float)sectionY, getWidth() - 20.0f, (float)sectionHeight, 5.0f);
-    g.setColour(juce::Colour(0xff4ecdc4));
-    g.setFont(juce::FontOptions(13.0f).withStyle("Bold"));
-    g.drawText("COMPRESSOR 1", 18, sectionY + 5, 140, 16, juce::Justification::left);
-
-    // Distortion
-    sectionY += sectionHeight + 8;
-    g.setColour(juce::Colour(0xff16213e));
-    g.fillRoundedRectangle(10.0f, (float)sectionY, getWidth() - 20.0f, (float)sectionHeight, 5.0f);
-    g.setColour(juce::Colour(0xffff6b6b));
-    g.drawText("DISTORTION", 18, sectionY + 5, 120, 16, juce::Justification::left);
-
-    // Amp Sim
-    sectionY += sectionHeight + 8;
-    g.setColour(juce::Colour(0xff16213e));
-    g.fillRoundedRectangle(10.0f, (float)sectionY, getWidth() - 20.0f, (float)sectionHeight, 5.0f);
-    g.setColour(juce::Colour(0xffffd93d));
-    g.drawText("AMP SIM", 18, sectionY + 5, 120, 16, juce::Justification::left);
-
-    // Modulation
-    sectionY += sectionHeight + 8;
-    g.setColour(juce::Colour(0xff16213e));
-    g.fillRoundedRectangle(10.0f, (float)sectionY, getWidth() - 20.0f, (float)sectionHeight, 5.0f);
-    g.setColour(juce::Colour(0xffbb86fc));
-    g.drawText("MODULATION", 18, sectionY + 5, 120, 16, juce::Justification::left);
-
-    // Reverb
-    sectionY += sectionHeight + 8;
-    g.setColour(juce::Colour(0xff16213e));
-    g.fillRoundedRectangle(10.0f, (float)sectionY, getWidth() - 20.0f, (float)sectionHeight, 5.0f);
-    g.setColour(juce::Colour(0xff6bcf7f));
-    g.drawText("REVERB", 18, sectionY + 5, 120, 16, juce::Justification::left);
-
-    // Compressor 2
-    sectionY += sectionHeight + 8;
-    g.setColour(juce::Colour(0xff16213e));
-    g.fillRoundedRectangle(10.0f, (float)sectionY, getWidth() - 20.0f, (float)sectionHeight, 5.0f);
-    g.setColour(juce::Colour(0xff45b7d1));
-    g.drawText("COMPRESSOR 2", 18, sectionY + 5, 140, 16, juce::Justification::left);
+    g.setColour(juce::Colours::white.withAlpha(0.6f));
+    g.drawText("Drag effects to reorder", getWidth() - 180, 12, 170, 16, juce::Justification::right);
 }
 
 void PDLBRDAudioProcessorEditor::resized()
 {
-    const int knobSize = 55;
-    const int labelHeight = 14;
-    const int spacing = 68;
-    const int sectionHeight = 140;
-
-    // Signal chain slots - drag and drop
-    int chainX = 18;
-    int chainY = 68;
-    int slotWidth = 115;
-    int slotHeight = 28;
-    int slotGap = 10;
-
-    for (int i = 0; i < PDLBRDAudioProcessor::NUM_EFFECTS; ++i)
-    {
-        chainSlots[i]->setBounds(chainX + i * (slotWidth + slotGap), chainY, slotWidth, slotHeight);
-    }
-
-    // Compressor 1 row
-    int y = 135;
-    int x = 18;
-    juce::Slider* comp1Sliders[] = {&comp1ThresholdSlider, &comp1RatioSlider, &comp1AttackSlider, &comp1ReleaseSlider, &comp1MakeupSlider, &comp1BlendSlider};
-    juce::Label* comp1Labels[] = {&comp1ThresholdLabel, &comp1RatioLabel, &comp1AttackLabel, &comp1ReleaseLabel, &comp1MakeupLabel, &comp1BlendLabel};
-    for (int i = 0; i < 6; ++i) {
-        comp1Labels[i]->setBounds(x, y, knobSize, labelHeight);
-        comp1Sliders[i]->setBounds(x, y + labelHeight, knobSize, knobSize);
-        x += spacing;
-    }
-    comp1BypassButton.setBounds(x + 5, y + 30, 65, 20);
-
-    // Distortion row
-    y += sectionHeight + 8;
-    x = 18;
-    distDriveLabel.setBounds(x, y, knobSize, labelHeight);
-    distDriveSlider.setBounds(x, y + labelHeight, knobSize, knobSize);
-    x += spacing;
-    distToneLabel.setBounds(x, y, knobSize, labelHeight);
-    distToneSlider.setBounds(x, y + labelHeight, knobSize, knobSize);
-    x += spacing;
-    distLevelLabel.setBounds(x, y, knobSize, labelHeight);
-    distLevelSlider.setBounds(x, y + labelHeight, knobSize, knobSize);
-    x += spacing;
-    distTypeLabel.setBounds(x, y, 80, labelHeight);
-    distTypeBox.setBounds(x, y + labelHeight + 12, 80, 22);
-    x += 95;
-    distBypassButton.setBounds(x, y + 30, 65, 20);
-
-    // Amp Sim row
-    y += sectionHeight + 8;
-    x = 18;
-    juce::Slider* ampSliders[] = {&ampGainSlider, &ampBassSlider, &ampMidSlider, &ampMidFreqSlider, &ampTrebleSlider, &ampMasterSlider};
-    juce::Label* ampLabels[] = {&ampGainLabel, &ampBassLabel, &ampMidLabel, &ampMidFreqLabel, &ampTrebleLabel, &ampMasterLabel};
-    for (int i = 0; i < 6; ++i) {
-        ampLabels[i]->setBounds(x, y, knobSize, labelHeight);
-        ampSliders[i]->setBounds(x, y + labelHeight, knobSize, knobSize);
-        x += spacing;
-    }
-    ampTypeLabel.setBounds(x, y, 75, labelHeight);
-    ampTypeBox.setBounds(x, y + labelHeight + 12, 75, 22);
-    x += 90;
-    ampBypassButton.setBounds(x, y + 30, 65, 20);
-
-    // Modulation row
-    y += sectionHeight + 8;
-    x = 18;
-    modRateLabel.setBounds(x, y, knobSize, labelHeight);
-    modRateSlider.setBounds(x, y + labelHeight, knobSize, knobSize);
-    x += spacing;
-    modDepthLabel.setBounds(x, y, knobSize, labelHeight);
-    modDepthSlider.setBounds(x, y + labelHeight, knobSize, knobSize);
-    x += spacing;
-    modBlendLabel.setBounds(x, y, knobSize, labelHeight);
-    modBlendSlider.setBounds(x, y + labelHeight, knobSize, knobSize);
-    x += spacing;
-    modTypeLabel.setBounds(x, y, 80, labelHeight);
-    modTypeBox.setBounds(x, y + labelHeight + 12, 80, 22);
-    x += 95;
-    modBypassButton.setBounds(x, y + 30, 65, 20);
-
-    // Reverb row
-    y += sectionHeight + 8;
-    x = 18;
-    revDecayLabel.setBounds(x, y, knobSize, labelHeight);
-    revDecaySlider.setBounds(x, y + labelHeight, knobSize, knobSize);
-    x += spacing;
-    revToneLabel.setBounds(x, y, knobSize, labelHeight);
-    revToneSlider.setBounds(x, y + labelHeight, knobSize, knobSize);
-    x += spacing;
-    revBlendLabel.setBounds(x, y, knobSize, labelHeight);
-    revBlendSlider.setBounds(x, y + labelHeight, knobSize, knobSize);
-    x += spacing;
-    revTypeLabel.setBounds(x, y, 80, labelHeight);
-    revTypeBox.setBounds(x, y + labelHeight + 12, 80, 22);
-    x += 95;
-    revBypassButton.setBounds(x, y + 30, 65, 20);
-
-    // Compressor 2 row
-    y += sectionHeight + 8;
-    x = 18;
-    juce::Slider* comp2Sliders[] = {&comp2ThresholdSlider, &comp2RatioSlider, &comp2AttackSlider, &comp2ReleaseSlider, &comp2MakeupSlider, &comp2BlendSlider};
-    juce::Label* comp2Labels[] = {&comp2ThresholdLabel, &comp2RatioLabel, &comp2AttackLabel, &comp2ReleaseLabel, &comp2MakeupLabel, &comp2BlendLabel};
-    for (int i = 0; i < 6; ++i) {
-        comp2Labels[i]->setBounds(x, y, knobSize, labelHeight);
-        comp2Sliders[i]->setBounds(x, y + labelHeight, knobSize, knobSize);
-        x += spacing;
-    }
-    comp2BypassButton.setBounds(x + 5, y + 30, 65, 20);
+    layoutSections();
 }

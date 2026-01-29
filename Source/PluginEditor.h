@@ -3,14 +3,17 @@
 #include <JuceHeader.h>
 #include "PluginProcessor.h"
 
+class PDLBRDAudioProcessorEditor;
+
 //==============================================================================
-class ChainSlot : public juce::Component,
-                  public juce::DragAndDropTarget
+class EffectSection : public juce::Component,
+                      public juce::DragAndDropTarget
 {
 public:
-    ChainSlot(int slotIndex, std::function<void(int, int)> onReorder);
+    EffectSection(PDLBRDAudioProcessorEditor& editor, int effectId, const juce::String& name, juce::Colour colour);
 
     void paint(juce::Graphics& g) override;
+    void resized() override;
     void mouseDown(const juce::MouseEvent& e) override;
     void mouseDrag(const juce::MouseEvent& e) override;
 
@@ -19,79 +22,62 @@ public:
     void itemDragExit(const SourceDetails& details) override;
     void itemDropped(const SourceDetails& details) override;
 
-    void setEffectId(int id);
-    void setEffectName(const juce::String& name);
-    void setEffectColour(juce::Colour c);
+    int getEffectId() const { return effectId; }
+    juce::Colour getColour() const { return colour; }
+
+    // Access to controls for attachment
+    juce::Slider& getSlider(int index) { return sliders[index]; }
+    juce::Label& getLabel(int index) { return labels[index]; }
+    juce::ComboBox& getTypeBox() { return typeBox; }
+    juce::Label& getTypeLabel() { return typeLabel; }
+    juce::ToggleButton& getBypassButton() { return bypassButton; }
+
+    void setNumSliders(int count) { numSliders = count; }
+    void setHasTypeBox(bool has) { hasTypeBox = has; }
+    void setupSlider(int index, const juce::String& labelText);
+    void setupTypeBox(const juce::String& labelText, const juce::StringArray& items);
 
 private:
-    int slotIndex;
-    int effectId = 0;
-    juce::String effectName;
-    juce::Colour effectColour;
+    PDLBRDAudioProcessorEditor& parentEditor;
+    int effectId;
+    juce::String name;
+    juce::Colour colour;
     bool isDragOver = false;
-    std::function<void(int, int)> reorderCallback;
+
+    static constexpr int MAX_SLIDERS = 6;
+    std::array<juce::Slider, MAX_SLIDERS> sliders;
+    std::array<juce::Label, MAX_SLIDERS> labels;
+    int numSliders = 0;
+
+    juce::ComboBox typeBox;
+    juce::Label typeLabel;
+    bool hasTypeBox = false;
+
+    juce::ToggleButton bypassButton;
 };
 
 //==============================================================================
 class PDLBRDAudioProcessorEditor : public juce::AudioProcessorEditor,
-                                   public juce::DragAndDropContainer,
-                                   public juce::Timer
+                                   public juce::DragAndDropContainer
 {
 public:
-    PDLBRDAudioProcessorEditor (PDLBRDAudioProcessor&);
+    PDLBRDAudioProcessorEditor(PDLBRDAudioProcessor&);
     ~PDLBRDAudioProcessorEditor() override;
 
-    void paint (juce::Graphics&) override;
+    void paint(juce::Graphics&) override;
     void resized() override;
-    void timerCallback() override;
+
+    void handleReorder(int fromEffectId, int toEffectId);
+    PDLBRDAudioProcessor& getProcessor() { return audioProcessor; }
 
 private:
     PDLBRDAudioProcessor& audioProcessor;
 
-    // Signal chain display - drag and drop slots
-    std::array<std::unique_ptr<ChainSlot>, PDLBRDAudioProcessor::NUM_EFFECTS> chainSlots;
-    void updateChainDisplay();
-    void handleReorder(int fromSlot, int toSlot);
+    // Effect sections - one for each effect
+    std::array<std::unique_ptr<EffectSection>, PDLBRDAudioProcessor::NUM_EFFECTS> sections;
 
-    // Compressor 1
-    juce::Slider comp1ThresholdSlider, comp1RatioSlider, comp1AttackSlider;
-    juce::Slider comp1ReleaseSlider, comp1MakeupSlider, comp1BlendSlider;
-    juce::ToggleButton comp1BypassButton;
-    juce::Label comp1ThresholdLabel, comp1RatioLabel, comp1AttackLabel;
-    juce::Label comp1ReleaseLabel, comp1MakeupLabel, comp1BlendLabel;
-
-    // Compressor 2
-    juce::Slider comp2ThresholdSlider, comp2RatioSlider, comp2AttackSlider;
-    juce::Slider comp2ReleaseSlider, comp2MakeupSlider, comp2BlendSlider;
-    juce::ToggleButton comp2BypassButton;
-    juce::Label comp2ThresholdLabel, comp2RatioLabel, comp2AttackLabel;
-    juce::Label comp2ReleaseLabel, comp2MakeupLabel, comp2BlendLabel;
-
-    // Distortion
-    juce::Slider distDriveSlider, distToneSlider, distLevelSlider;
-    juce::ComboBox distTypeBox;
-    juce::ToggleButton distBypassButton;
-    juce::Label distDriveLabel, distToneLabel, distLevelLabel, distTypeLabel;
-
-    // Amp Sim
-    juce::Slider ampGainSlider, ampBassSlider, ampMidSlider;
-    juce::Slider ampMidFreqSlider, ampTrebleSlider, ampMasterSlider;
-    juce::ComboBox ampTypeBox;
-    juce::ToggleButton ampBypassButton;
-    juce::Label ampGainLabel, ampBassLabel, ampMidLabel;
-    juce::Label ampMidFreqLabel, ampTrebleLabel, ampMasterLabel, ampTypeLabel;
-
-    // Modulation
-    juce::Slider modRateSlider, modDepthSlider, modBlendSlider;
-    juce::ComboBox modTypeBox;
-    juce::ToggleButton modBypassButton;
-    juce::Label modRateLabel, modDepthLabel, modBlendLabel, modTypeLabel;
-
-    // Reverb
-    juce::Slider revDecaySlider, revToneSlider, revBlendSlider;
-    juce::ComboBox revTypeBox;
-    juce::ToggleButton revBypassButton;
-    juce::Label revDecayLabel, revToneLabel, revBlendLabel, revTypeLabel;
+    void createSections();
+    void layoutSections();
 
     // Compressor 1 attachments
     std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> comp1ThresholdAttachment;
@@ -101,15 +87,6 @@ private:
     std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> comp1MakeupAttachment;
     std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> comp1BlendAttachment;
     std::unique_ptr<juce::AudioProcessorValueTreeState::ButtonAttachment> comp1BypassAttachment;
-
-    // Compressor 2 attachments
-    std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> comp2ThresholdAttachment;
-    std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> comp2RatioAttachment;
-    std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> comp2AttackAttachment;
-    std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> comp2ReleaseAttachment;
-    std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> comp2MakeupAttachment;
-    std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> comp2BlendAttachment;
-    std::unique_ptr<juce::AudioProcessorValueTreeState::ButtonAttachment> comp2BypassAttachment;
 
     // Distortion attachments
     std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> distDriveAttachment;
@@ -142,8 +119,14 @@ private:
     std::unique_ptr<juce::AudioProcessorValueTreeState::ComboBoxAttachment> revTypeAttachment;
     std::unique_ptr<juce::AudioProcessorValueTreeState::ButtonAttachment> revBypassAttachment;
 
-    void setupSlider(juce::Slider& slider, juce::Label& label, const juce::String& labelText, juce::Colour colour);
-    void setupComboBox(juce::ComboBox& box, juce::Label& label, const juce::String& labelText, juce::Colour colour);
+    // Compressor 2 attachments
+    std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> comp2ThresholdAttachment;
+    std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> comp2RatioAttachment;
+    std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> comp2AttackAttachment;
+    std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> comp2ReleaseAttachment;
+    std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> comp2MakeupAttachment;
+    std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> comp2BlendAttachment;
+    std::unique_ptr<juce::AudioProcessorValueTreeState::ButtonAttachment> comp2BypassAttachment;
 
-    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (PDLBRDAudioProcessorEditor)
+    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(PDLBRDAudioProcessorEditor)
 };
