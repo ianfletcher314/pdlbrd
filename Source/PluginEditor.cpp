@@ -1,6 +1,103 @@
 #include "PluginProcessor.h"
 #include "PluginEditor.h"
 
+//==============================================================================
+// ChainSlot implementation
+//==============================================================================
+ChainSlot::ChainSlot(int index, std::function<void(int, int)> onReorder)
+    : slotIndex(index), reorderCallback(onReorder)
+{
+}
+
+void ChainSlot::paint(juce::Graphics& g)
+{
+    auto bounds = getLocalBounds().reduced(2);
+
+    // Draw background
+    if (isDragOver)
+    {
+        g.setColour(juce::Colours::white.withAlpha(0.3f));
+        g.fillRoundedRectangle(bounds.toFloat(), 6.0f);
+    }
+
+    g.setColour(effectColour.darker(0.2f));
+    g.fillRoundedRectangle(bounds.toFloat(), 6.0f);
+
+    // Draw border
+    g.setColour(effectColour);
+    g.drawRoundedRectangle(bounds.toFloat(), 6.0f, 2.0f);
+
+    // Draw text
+    g.setColour(juce::Colours::white);
+    g.setFont(juce::FontOptions(12.0f).withStyle("Bold"));
+    g.drawText(effectName, bounds, juce::Justification::centred);
+
+    // Draw drag handle dots
+    g.setColour(juce::Colours::white.withAlpha(0.5f));
+    int dotY = bounds.getCentreY();
+    for (int i = 0; i < 3; ++i)
+    {
+        g.fillEllipse((float)(bounds.getX() + 6), (float)(dotY - 6 + i * 6), 3.0f, 3.0f);
+    }
+}
+
+void ChainSlot::mouseDown(const juce::MouseEvent& e)
+{
+    juce::ignoreUnused(e);
+}
+
+void ChainSlot::mouseDrag(const juce::MouseEvent& e)
+{
+    if (e.getDistanceFromDragStart() > 5)
+    {
+        if (auto* container = juce::DragAndDropContainer::findParentDragContainerFor(this))
+        {
+            // Create a snapshot image for dragging
+            auto snapshot = createComponentSnapshot(getLocalBounds());
+            juce::ScaledImage scaledImage(snapshot, 1.0);
+
+            container->startDragging(juce::String(slotIndex), this, scaledImage, true);
+        }
+    }
+}
+
+bool ChainSlot::isInterestedInDragSource(const SourceDetails& details)
+{
+    return details.description.toString().containsOnly("0123456789");
+}
+
+void ChainSlot::itemDragEnter(const SourceDetails& details)
+{
+    juce::ignoreUnused(details);
+    isDragOver = true;
+    repaint();
+}
+
+void ChainSlot::itemDragExit(const SourceDetails& details)
+{
+    juce::ignoreUnused(details);
+    isDragOver = false;
+    repaint();
+}
+
+void ChainSlot::itemDropped(const SourceDetails& details)
+{
+    isDragOver = false;
+    int fromSlot = details.description.toString().getIntValue();
+    if (fromSlot != slotIndex && reorderCallback)
+    {
+        reorderCallback(fromSlot, slotIndex);
+    }
+    repaint();
+}
+
+void ChainSlot::setEffectId(int id) { effectId = id; }
+void ChainSlot::setEffectName(const juce::String& name) { effectName = name; repaint(); }
+void ChainSlot::setEffectColour(juce::Colour c) { effectColour = c; repaint(); }
+
+//==============================================================================
+// PDLBRDAudioProcessorEditor implementation
+//==============================================================================
 PDLBRDAudioProcessorEditor::PDLBRDAudioProcessorEditor(PDLBRDAudioProcessor& p)
     : AudioProcessorEditor(&p), audioProcessor(p)
 {
@@ -11,43 +108,13 @@ PDLBRDAudioProcessorEditor::PDLBRDAudioProcessorEditor(PDLBRDAudioProcessor& p)
     juce::Colour revColour(0xff6bcf7f);     // Green
     juce::Colour comp2Colour(0xff45b7d1);   // Light blue
 
-    // === SIGNAL CHAIN ===
-    const std::array<juce::Colour, 6> chainColours = { comp1Colour, distColour, ampColour, modColour, revColour, comp2Colour };
+    // === SIGNAL CHAIN (Drag and Drop) ===
     for (int i = 0; i < PDLBRDAudioProcessor::NUM_EFFECTS; ++i)
     {
-        chainButtons[i].setColour(juce::TextButton::buttonColourId, juce::Colour(0xff2a2a3e));
-        chainButtons[i].setColour(juce::TextButton::textColourOffId, juce::Colours::white);
-        addAndMakeVisible(chainButtons[i]);
-
-        upButtons[i].setButtonText(juce::CharPointer_UTF8("\xe2\x96\xb2")); // Up arrow
-        upButtons[i].setColour(juce::TextButton::buttonColourId, juce::Colour(0xff3a3a4e));
-        upButtons[i].onClick = [this, i]() {
-            auto order = audioProcessor.getEffectOrder();
-            for (int j = 1; j < PDLBRDAudioProcessor::NUM_EFFECTS; ++j) {
-                if (order[j] == i) {
-                    std::swap(order[j], order[j-1]);
-                    audioProcessor.setEffectOrder(order);
-                    updateChainDisplay();
-                    return;
-                }
-            }
-        };
-        addAndMakeVisible(upButtons[i]);
-
-        downButtons[i].setButtonText(juce::CharPointer_UTF8("\xe2\x96\xbc")); // Down arrow
-        downButtons[i].setColour(juce::TextButton::buttonColourId, juce::Colour(0xff3a3a4e));
-        downButtons[i].onClick = [this, i]() {
-            auto order = audioProcessor.getEffectOrder();
-            for (int j = 0; j < PDLBRDAudioProcessor::NUM_EFFECTS - 1; ++j) {
-                if (order[j] == i) {
-                    std::swap(order[j], order[j+1]);
-                    audioProcessor.setEffectOrder(order);
-                    updateChainDisplay();
-                    return;
-                }
-            }
-        };
-        addAndMakeVisible(downButtons[i]);
+        chainSlots[i] = std::make_unique<ChainSlot>(i, [this](int from, int to) {
+            handleReorder(from, to);
+        });
+        addAndMakeVisible(chainSlots[i].get());
     }
     updateChainDisplay();
 
@@ -190,6 +257,30 @@ void PDLBRDAudioProcessorEditor::timerCallback()
     updateChainDisplay();
 }
 
+void PDLBRDAudioProcessorEditor::handleReorder(int fromSlot, int toSlot)
+{
+    auto order = audioProcessor.getEffectOrder();
+
+    // Get the effect that's being moved
+    int movingEffect = order[fromSlot];
+
+    // Remove from old position and insert at new position
+    if (fromSlot < toSlot)
+    {
+        for (int i = fromSlot; i < toSlot; ++i)
+            order[i] = order[i + 1];
+    }
+    else
+    {
+        for (int i = fromSlot; i > toSlot; --i)
+            order[i] = order[i - 1];
+    }
+    order[toSlot] = movingEffect;
+
+    audioProcessor.setEffectOrder(order);
+    updateChainDisplay();
+}
+
 void PDLBRDAudioProcessorEditor::updateChainDisplay()
 {
     auto order = audioProcessor.getEffectOrder();
@@ -205,8 +296,9 @@ void PDLBRDAudioProcessorEditor::updateChainDisplay()
     for (int pos = 0; pos < PDLBRDAudioProcessor::NUM_EFFECTS; ++pos)
     {
         int effectId = order[pos];
-        chainButtons[pos].setButtonText(audioProcessor.effectNames[effectId]);
-        chainButtons[pos].setColour(juce::TextButton::buttonColourId, chainColours[effectId].darker(0.3f));
+        chainSlots[pos]->setEffectId(effectId);
+        chainSlots[pos]->setEffectName(audioProcessor.effectNames[effectId]);
+        chainSlots[pos]->setEffectColour(chainColours[effectId]);
     }
 }
 
@@ -260,7 +352,7 @@ void PDLBRDAudioProcessorEditor::paint(juce::Graphics& g)
     g.fillRoundedRectangle(10.0f, 50.0f, getWidth() - 20.0f, 50.0f, 5.0f);
     g.setColour(juce::Colours::white);
     g.setFont(juce::FontOptions(11.0f));
-    g.drawText("SIGNAL CHAIN (click arrows to reorder)", 18, 52, 300, 16, juce::Justification::left);
+    g.drawText("SIGNAL CHAIN - drag to reorder", 18, 52, 300, 16, juce::Justification::left);
 
     int sectionHeight = 140;
     int sectionY = 110;
@@ -315,19 +407,16 @@ void PDLBRDAudioProcessorEditor::resized()
     const int spacing = 68;
     const int sectionHeight = 140;
 
-    // Signal chain buttons
+    // Signal chain slots - drag and drop
     int chainX = 18;
-    int chainY = 70;
-    int btnWidth = 70;
-    int btnHeight = 22;
-    int arrowSize = 18;
+    int chainY = 68;
+    int slotWidth = 115;
+    int slotHeight = 28;
+    int slotGap = 10;
 
     for (int i = 0; i < PDLBRDAudioProcessor::NUM_EFFECTS; ++i)
     {
-        upButtons[i].setBounds(chainX, chainY - 2, arrowSize, arrowSize);
-        chainButtons[i].setBounds(chainX + arrowSize + 2, chainY, btnWidth, btnHeight);
-        downButtons[i].setBounds(chainX + arrowSize + btnWidth + 4, chainY - 2, arrowSize, arrowSize);
-        chainX += arrowSize + btnWidth + arrowSize + 18;
+        chainSlots[i]->setBounds(chainX + i * (slotWidth + slotGap), chainY, slotWidth, slotHeight);
     }
 
     // Compressor 1 row

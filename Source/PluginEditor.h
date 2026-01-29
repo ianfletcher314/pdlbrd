@@ -3,7 +3,38 @@
 #include <JuceHeader.h>
 #include "PluginProcessor.h"
 
+//==============================================================================
+class ChainSlot : public juce::Component,
+                  public juce::DragAndDropTarget
+{
+public:
+    ChainSlot(int slotIndex, std::function<void(int, int)> onReorder);
+
+    void paint(juce::Graphics& g) override;
+    void mouseDown(const juce::MouseEvent& e) override;
+    void mouseDrag(const juce::MouseEvent& e) override;
+
+    bool isInterestedInDragSource(const SourceDetails& details) override;
+    void itemDragEnter(const SourceDetails& details) override;
+    void itemDragExit(const SourceDetails& details) override;
+    void itemDropped(const SourceDetails& details) override;
+
+    void setEffectId(int id);
+    void setEffectName(const juce::String& name);
+    void setEffectColour(juce::Colour c);
+
+private:
+    int slotIndex;
+    int effectId = 0;
+    juce::String effectName;
+    juce::Colour effectColour;
+    bool isDragOver = false;
+    std::function<void(int, int)> reorderCallback;
+};
+
+//==============================================================================
 class PDLBRDAudioProcessorEditor : public juce::AudioProcessorEditor,
+                                   public juce::DragAndDropContainer,
                                    public juce::Timer
 {
 public:
@@ -17,11 +48,10 @@ public:
 private:
     PDLBRDAudioProcessor& audioProcessor;
 
-    // Signal chain display
-    std::array<juce::TextButton, PDLBRDAudioProcessor::NUM_EFFECTS> chainButtons;
-    std::array<juce::TextButton, PDLBRDAudioProcessor::NUM_EFFECTS> upButtons;
-    std::array<juce::TextButton, PDLBRDAudioProcessor::NUM_EFFECTS> downButtons;
+    // Signal chain display - drag and drop slots
+    std::array<std::unique_ptr<ChainSlot>, PDLBRDAudioProcessor::NUM_EFFECTS> chainSlots;
     void updateChainDisplay();
+    void handleReorder(int fromSlot, int toSlot);
 
     // Compressor 1
     juce::Slider comp1ThresholdSlider, comp1RatioSlider, comp1AttackSlider;
