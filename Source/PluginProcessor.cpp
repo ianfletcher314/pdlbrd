@@ -298,6 +298,12 @@ void PDLBRDAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce::
     for (auto i = totalNumInputChannels; i < totalNumOutputChannels; ++i)
         buffer.clear(i, 0, buffer.getNumSamples());
 
+    // Measure input level
+    float inLevel = 0.0f;
+    for (int ch = 0; ch < totalNumInputChannels; ++ch)
+        inLevel = std::max(inLevel, buffer.getMagnitude(ch, 0, buffer.getNumSamples()));
+    inputLevel.store(inLevel);
+
     // Update compressor 1
     compressor1.setThreshold(comp1Threshold->load());
     compressor1.setRatio(comp1Ratio->load());
@@ -352,6 +358,12 @@ void PDLBRDAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce::
     {
         effects[effectOrder[i]]->process(buffer);
     }
+
+    // Measure output level
+    float outLevel = 0.0f;
+    for (int ch = 0; ch < totalNumInputChannels; ++ch)
+        outLevel = std::max(outLevel, buffer.getMagnitude(ch, 0, buffer.getNumSamples()));
+    outputLevel.store(outLevel);
 }
 
 void PDLBRDAudioProcessor::getStateInformation(juce::MemoryBlock& destData)

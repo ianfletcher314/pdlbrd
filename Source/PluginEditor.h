@@ -6,6 +6,17 @@
 class PDLBRDAudioProcessorEditor;
 
 //==============================================================================
+class LevelMeter : public juce::Component
+{
+public:
+    void setLevel(float newLevel) { level = newLevel; repaint(); }
+    void paint(juce::Graphics& g) override;
+
+private:
+    float level = 0.0f;
+};
+
+//==============================================================================
 class EffectSection : public juce::Component,
                       public juce::DragAndDropTarget
 {
@@ -25,7 +36,6 @@ public:
     int getEffectId() const { return effectId; }
     juce::Colour getColour() const { return colour; }
 
-    // Access to controls for attachment
     juce::Slider& getSlider(int index) { return sliders[index]; }
     juce::Label& getLabel(int index) { return labels[index]; }
     juce::ComboBox& getTypeBox() { return typeBox; }
@@ -58,7 +68,8 @@ private:
 
 //==============================================================================
 class PDLBRDAudioProcessorEditor : public juce::AudioProcessorEditor,
-                                   public juce::DragAndDropContainer
+                                   public juce::DragAndDropContainer,
+                                   public juce::Timer
 {
 public:
     PDLBRDAudioProcessorEditor(PDLBRDAudioProcessor&);
@@ -66,6 +77,7 @@ public:
 
     void paint(juce::Graphics&) override;
     void resized() override;
+    void timerCallback() override;
 
     void handleReorder(int fromEffectId, int toEffectId);
     PDLBRDAudioProcessor& getProcessor() { return audioProcessor; }
@@ -73,7 +85,12 @@ public:
 private:
     PDLBRDAudioProcessor& audioProcessor;
 
-    // Effect sections - one for each effect
+    // Level meters
+    LevelMeter inputMeter, outputMeter;
+    float smoothedInputLevel = 0.0f;
+    float smoothedOutputLevel = 0.0f;
+
+    // Effect sections
     std::array<std::unique_ptr<EffectSection>, PDLBRDAudioProcessor::NUM_EFFECTS> sections;
 
     void createSections();

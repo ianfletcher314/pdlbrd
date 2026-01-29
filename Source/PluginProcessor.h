@@ -44,6 +44,10 @@ public:
     float getCompressor1GainReduction() const { return compressor1.getGainReduction(); }
     float getCompressor2GainReduction() const { return compressor2.getGainReduction(); }
 
+    // Level metering
+    float getInputLevel() const { return inputLevel.load(); }
+    float getOutputLevel() const { return outputLevel.load(); }
+
     // Signal chain ordering
     static constexpr int NUM_EFFECTS = 6;
     enum EffectID { COMP1 = 0, DIST, AMP, MOD, REV, COMP2 };
@@ -118,6 +122,10 @@ private:
     std::atomic<float>* revBlend = nullptr;
     std::atomic<float>* revType = nullptr;
     std::atomic<float>* revBypass = nullptr;
+
+    // Level metering
+    std::atomic<float> inputLevel { 0.0f };
+    std::atomic<float> outputLevel { 0.0f };
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (PDLBRDAudioProcessor)
 };

@@ -2,13 +2,52 @@
 #include "PluginEditor.h"
 
 //==============================================================================
+// LevelMeter implementation
+//==============================================================================
+void LevelMeter::paint(juce::Graphics& g)
+{
+    auto bounds = getLocalBounds().toFloat();
+
+    // Background
+    g.setColour(juce::Colour(0xff0a0a15));
+    g.fillRoundedRectangle(bounds, 2.0f);
+
+    // Calculate level height (convert to dB, then normalize)
+    float db = juce::Decibels::gainToDecibels(level, -60.0f);
+    float normalized = juce::jmap(db, -60.0f, 0.0f, 0.0f, 1.0f);
+    normalized = juce::jlimit(0.0f, 1.0f, normalized);
+
+    // Level bar
+    float barHeight = bounds.getHeight() * normalized;
+    auto barBounds = bounds.removeFromBottom(barHeight);
+
+    // Gradient from green to yellow to red
+    juce::Colour barColour;
+    if (normalized < 0.6f)
+        barColour = juce::Colour(0xff4ecdc4);  // Cyan/green
+    else if (normalized < 0.85f)
+        barColour = juce::Colour(0xffffd93d);  // Yellow
+    else
+        barColour = juce::Colour(0xffff6b6b);  // Red
+
+    g.setColour(barColour);
+    g.fillRoundedRectangle(barBounds.reduced(1), 1.0f);
+
+    // Outline
+    g.setColour(juce::Colour(0xff3a3a4e));
+    g.drawRoundedRectangle(getLocalBounds().toFloat(), 2.0f, 1.0f);
+}
+
+//==============================================================================
 // EffectSection implementation
 //==============================================================================
 EffectSection::EffectSection(PDLBRDAudioProcessorEditor& editor, int id, const juce::String& n, juce::Colour c)
     : parentEditor(editor), effectId(id), name(n), colour(c)
 {
-    bypassButton.setButtonText("Bypass");
+    bypassButton.setButtonText("ON");
+    bypassButton.setClickingTogglesState(true);
     bypassButton.setColour(juce::ToggleButton::textColourId, juce::Colours::white);
+    bypassButton.setColour(juce::ToggleButton::tickColourId, colour);
     addAndMakeVisible(bypassButton);
 }
 
@@ -22,15 +61,15 @@ void EffectSection::setupSlider(int index, const juce::String& labelText)
     slider.setSliderStyle(juce::Slider::RotaryHorizontalVerticalDrag);
     slider.setTextBoxStyle(juce::Slider::TextBoxBelow, false, 50, 14);
     slider.setColour(juce::Slider::rotarySliderFillColourId, colour);
-    slider.setColour(juce::Slider::rotarySliderOutlineColourId, juce::Colour(0xff2a2a3e));
+    slider.setColour(juce::Slider::rotarySliderOutlineColourId, juce::Colour(0xff1a1a2e));
     slider.setColour(juce::Slider::thumbColourId, juce::Colours::white);
-    slider.setColour(juce::Slider::textBoxTextColourId, juce::Colours::white);
+    slider.setColour(juce::Slider::textBoxTextColourId, juce::Colours::white.withAlpha(0.8f));
     slider.setColour(juce::Slider::textBoxOutlineColourId, juce::Colours::transparentBlack);
     addAndMakeVisible(slider);
 
     label.setText(labelText, juce::dontSendNotification);
     label.setJustificationType(juce::Justification::centred);
-    label.setColour(juce::Label::textColourId, juce::Colours::white);
+    label.setColour(juce::Label::textColourId, juce::Colours::white.withAlpha(0.7f));
     label.setFont(juce::FontOptions(10.0f));
     addAndMakeVisible(label);
 
@@ -40,16 +79,17 @@ void EffectSection::setupSlider(int index, const juce::String& labelText)
 
 void EffectSection::setupTypeBox(const juce::String& labelText, const juce::StringArray& items)
 {
-    typeBox.setColour(juce::ComboBox::backgroundColourId, juce::Colour(0xff2a2a3e));
+    typeBox.setColour(juce::ComboBox::backgroundColourId, juce::Colour(0xff1a1a2e));
     typeBox.setColour(juce::ComboBox::textColourId, juce::Colours::white);
-    typeBox.setColour(juce::ComboBox::outlineColourId, colour);
+    typeBox.setColour(juce::ComboBox::outlineColourId, colour.withAlpha(0.5f));
+    typeBox.setColour(juce::ComboBox::arrowColourId, colour);
     for (int i = 0; i < items.size(); ++i)
         typeBox.addItem(items[i], i + 1);
     addAndMakeVisible(typeBox);
 
     typeLabel.setText(labelText, juce::dontSendNotification);
     typeLabel.setJustificationType(juce::Justification::centred);
-    typeLabel.setColour(juce::Label::textColourId, juce::Colours::white);
+    typeLabel.setColour(juce::Label::textColourId, juce::Colours::white.withAlpha(0.7f));
     typeLabel.setFont(juce::FontOptions(10.0f));
     addAndMakeVisible(typeLabel);
 
@@ -60,31 +100,57 @@ void EffectSection::paint(juce::Graphics& g)
 {
     auto bounds = getLocalBounds().reduced(2);
 
-    // Draw background
-    g.setColour(juce::Colour(0xff16213e));
-    g.fillRoundedRectangle(bounds.toFloat(), 8.0f);
+    // Main background with subtle gradient
+    juce::ColourGradient gradient(juce::Colour(0xff1e1e32), 0.0f, 0.0f,
+                                   juce::Colour(0xff141428), 0.0f, (float)bounds.getHeight(),
+                                   false);
+    g.setGradientFill(gradient);
+    g.fillRoundedRectangle(bounds.toFloat(), 10.0f);
 
-    // Draw highlight if dragging over
-    if (isDragOver)
+    // Inner shadow effect
+    g.setColour(juce::Colour(0xff0a0a15));
+    g.drawRoundedRectangle(bounds.toFloat().reduced(1), 9.0f, 2.0f);
+
+    // Outer border
+    g.setColour(colour.withAlpha(isDragOver ? 0.8f : 0.3f));
+    g.drawRoundedRectangle(bounds.toFloat(), 10.0f, isDragOver ? 2.0f : 1.0f);
+
+    // LED indicator
+    bool isActive = !bypassButton.getToggleState();  // ON when not bypassed
+    auto ledBounds = juce::Rectangle<float>(bounds.getX() + 14.0f, bounds.getY() + 12.0f, 10.0f, 10.0f);
+
+    if (isActive)
     {
-        g.setColour(juce::Colours::white.withAlpha(0.15f));
-        g.fillRoundedRectangle(bounds.toFloat(), 8.0f);
+        // Glow effect
+        g.setColour(colour.withAlpha(0.3f));
+        g.fillEllipse(ledBounds.expanded(4.0f));
+        g.setColour(colour.withAlpha(0.5f));
+        g.fillEllipse(ledBounds.expanded(2.0f));
+        // Main LED
+        g.setColour(colour);
+        g.fillEllipse(ledBounds);
+        // Highlight
+        g.setColour(juce::Colours::white.withAlpha(0.6f));
+        g.fillEllipse(ledBounds.reduced(3.0f).translated(-1.0f, -1.0f));
+    }
+    else
+    {
+        // Dim LED
+        g.setColour(colour.withAlpha(0.15f));
+        g.fillEllipse(ledBounds);
+        g.setColour(colour.withAlpha(0.3f));
+        g.drawEllipse(ledBounds, 1.0f);
     }
 
-    // Draw colored accent bar at top
+    // Title
     g.setColour(colour);
-    g.fillRoundedRectangle(bounds.getX() + 2.0f, bounds.getY() + 2.0f,
-                           bounds.getWidth() - 4.0f, 4.0f, 2.0f);
+    g.setFont(juce::FontOptions(14.0f).withStyle("Bold"));
+    g.drawText(name, 30, 8, 200, 20, juce::Justification::left);
 
-    // Draw title
-    g.setColour(colour);
-    g.setFont(juce::FontOptions(13.0f).withStyle("Bold"));
-    g.drawText(name, 18, 10, 200, 20, juce::Justification::left);
-
-    // Draw drag indicator (6 dots in 2 columns)
-    g.setColour(juce::Colours::white.withAlpha(0.4f));
-    int dotX = bounds.getRight() - 20;
-    int dotY = 14;
+    // Drag indicator dots
+    g.setColour(juce::Colours::white.withAlpha(0.25f));
+    int dotX = bounds.getRight() - 22;
+    int dotY = 12;
     for (int row = 0; row < 3; ++row)
     {
         g.fillEllipse((float)dotX, (float)(dotY + row * 6), 3.0f, 3.0f);
@@ -97,7 +163,7 @@ void EffectSection::resized()
     const int knobSize = 55;
     const int labelHeight = 14;
     const int spacing = 68;
-    const int startY = 30;
+    const int startY = 32;
     int x = 18;
 
     for (int i = 0; i < numSliders; ++i)
@@ -114,7 +180,7 @@ void EffectSection::resized()
         x += 95;
     }
 
-    bypassButton.setBounds(x + 5, startY + 25, 65, 20);
+    bypassButton.setBounds(x + 5, startY + 25, 55, 22);
 }
 
 void EffectSection::mouseDown(const juce::MouseEvent& e)
@@ -128,11 +194,9 @@ void EffectSection::mouseDrag(const juce::MouseEvent& e)
     {
         if (auto* container = juce::DragAndDropContainer::findParentDragContainerFor(this))
         {
-            // Create a snapshot for dragging
             auto snapshot = createComponentSnapshot(getLocalBounds());
             snapshot = snapshot.rescaled(snapshot.getWidth() / 2, snapshot.getHeight() / 2);
             juce::ScaledImage scaledImage(snapshot, 2.0);
-
             container->startDragging(juce::String(effectId), this, scaledImage, true, nullptr, &e.source);
         }
     }
@@ -140,7 +204,6 @@ void EffectSection::mouseDrag(const juce::MouseEvent& e)
 
 bool EffectSection::isInterestedInDragSource(const SourceDetails& details)
 {
-    // Accept drops from other effect sections
     return details.description.toString().containsOnly("0123456789") &&
            details.description.toString().getIntValue() != effectId;
 }
@@ -173,6 +236,9 @@ void EffectSection::itemDropped(const SourceDetails& details)
 PDLBRDAudioProcessorEditor::PDLBRDAudioProcessorEditor(PDLBRDAudioProcessor& p)
     : AudioProcessorEditor(&p), audioProcessor(p)
 {
+    addAndMakeVisible(inputMeter);
+    addAndMakeVisible(outputMeter);
+
     createSections();
 
     auto& apvts = audioProcessor.getAPVTS();
@@ -232,11 +298,36 @@ PDLBRDAudioProcessorEditor::PDLBRDAudioProcessorEditor(PDLBRDAudioProcessor& p)
     comp2BlendAttachment = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(apvts, "comp2Blend", comp2.getSlider(5));
     comp2BypassAttachment = std::make_unique<juce::AudioProcessorValueTreeState::ButtonAttachment>(apvts, "comp2Bypass", comp2.getBypassButton());
 
-    setSize(800, 940);
+    setSize(820, 940);
+    startTimerHz(30);
 }
 
 PDLBRDAudioProcessorEditor::~PDLBRDAudioProcessorEditor()
 {
+    stopTimer();
+}
+
+void PDLBRDAudioProcessorEditor::timerCallback()
+{
+    // Smooth the levels for display
+    float targetIn = audioProcessor.getInputLevel();
+    float targetOut = audioProcessor.getOutputLevel();
+
+    smoothedInputLevel = smoothedInputLevel * 0.8f + targetIn * 0.2f;
+    smoothedOutputLevel = smoothedOutputLevel * 0.8f + targetOut * 0.2f;
+
+    // Decay
+    if (targetIn < smoothedInputLevel)
+        smoothedInputLevel *= 0.92f;
+    if (targetOut < smoothedOutputLevel)
+        smoothedOutputLevel *= 0.92f;
+
+    inputMeter.setLevel(smoothedInputLevel);
+    outputMeter.setLevel(smoothedOutputLevel);
+
+    // Repaint effect sections for LED updates
+    for (auto& section : sections)
+        if (section) section->repaint();
 }
 
 void PDLBRDAudioProcessorEditor::createSections()
@@ -313,7 +404,6 @@ void PDLBRDAudioProcessorEditor::handleReorder(int fromEffectId, int toEffectId)
 {
     auto order = audioProcessor.getEffectOrder();
 
-    // Find positions of both effects
     int fromPos = -1, toPos = -1;
     for (int i = 0; i < PDLBRDAudioProcessor::NUM_EFFECTS; ++i)
     {
@@ -324,7 +414,6 @@ void PDLBRDAudioProcessorEditor::handleReorder(int fromEffectId, int toEffectId)
     if (fromPos < 0 || toPos < 0 || fromPos == toPos)
         return;
 
-    // Move the effect
     int movingEffect = order[fromPos];
     if (fromPos < toPos)
     {
@@ -347,34 +436,56 @@ void PDLBRDAudioProcessorEditor::layoutSections()
 {
     auto order = audioProcessor.getEffectOrder();
     const int sectionHeight = 140;
-    const int sectionGap = 8;
+    const int sectionGap = 6;
     int y = 50;
 
     for (int i = 0; i < PDLBRDAudioProcessor::NUM_EFFECTS; ++i)
     {
         int effectId = order[i];
-        sections[effectId]->setBounds(10, y, getWidth() - 20, sectionHeight);
+        sections[effectId]->setBounds(30, y, getWidth() - 60, sectionHeight);
         y += sectionHeight + sectionGap;
     }
 }
 
 void PDLBRDAudioProcessorEditor::paint(juce::Graphics& g)
 {
-    g.fillAll(juce::Colour(0xff1a1a2e));
+    // Background gradient
+    juce::ColourGradient bgGradient(juce::Colour(0xff12121c), 0.0f, 0.0f,
+                                     juce::Colour(0xff1a1a2e), 0.0f, (float)getHeight(),
+                                     false);
+    g.setGradientFill(bgGradient);
+    g.fillAll();
 
     // Header
-    g.setColour(juce::Colour(0xff16213e));
-    g.fillRect(0, 0, getWidth(), 40);
-    g.setColour(juce::Colours::white);
-    g.setFont(juce::FontOptions(20.0f).withStyle("Bold"));
-    g.drawText("PDLBRD", 15, 8, 200, 24, juce::Justification::left);
+    g.setColour(juce::Colour(0xff0e0e18));
+    g.fillRect(0, 0, getWidth(), 42);
 
-    g.setFont(juce::FontOptions(11.0f));
+    // Header accent line
+    g.setColour(juce::Colour(0xff4ecdc4));
+    g.fillRect(0, 42, getWidth(), 2);
+
+    // Title
+    g.setColour(juce::Colours::white);
+    g.setFont(juce::FontOptions(22.0f).withStyle("Bold"));
+    g.drawText("PDLBRD", 15, 8, 150, 28, juce::Justification::left);
+
+    // Subtitle
+    g.setColour(juce::Colours::white.withAlpha(0.5f));
+    g.setFont(juce::FontOptions(10.0f));
+    g.drawText("PEDALBOARD", 15, 28, 100, 12, juce::Justification::left);
+
+    // Meter labels
     g.setColour(juce::Colours::white.withAlpha(0.6f));
-    g.drawText("Drag effects to reorder", getWidth() - 180, 12, 170, 16, juce::Justification::right);
+    g.setFont(juce::FontOptions(9.0f));
+    g.drawText("IN", getWidth() - 55, 6, 20, 12, juce::Justification::centred);
+    g.drawText("OUT", getWidth() - 30, 6, 20, 12, juce::Justification::centred);
 }
 
 void PDLBRDAudioProcessorEditor::resized()
 {
+    // Level meters in header
+    inputMeter.setBounds(getWidth() - 55, 18, 12, 20);
+    outputMeter.setBounds(getWidth() - 30, 18, 12, 20);
+
     layoutSections();
 }
