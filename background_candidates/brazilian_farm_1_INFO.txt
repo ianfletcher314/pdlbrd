@@ -1,0 +1,9 @@
+Source: Unsplash
+URL: https://unsplash.com/photos/photo-1653007574344-20236976dc02
+Direct: https://images.unsplash.com/photo-1653007574344-20236976dc02
+License: Unsplash License (free for commercial use, no attribution required)
+
+Description: Brazilian countryside with colonial farmhouse in Minas Gerais, rolling green hills with patches of red earth soil.
+Earth tones present: Olive/green hills, brown/tan foreground grass, red earth soil, rustic colonial architecture.
+
+Distinctly Brazilian aesthetic with rural charm suitable for guitar pedalboard plugin.

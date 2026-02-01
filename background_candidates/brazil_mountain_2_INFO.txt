@@ -1,0 +1,9 @@
+Source: Unsplash
+URL: https://unsplash.com/photos/photo-1661448879510-62003f254eea
+Direct: https://images.unsplash.com/photo-1661448879510-62003f254eea
+License: Unsplash License (free for commercial use, no attribution required)
+
+Description: Brazilian valley landscape overlooking agricultural fields with mountains in background.
+Earth tones present: Olive greens, brown/tan grasses, teal/blue mountains, burgundy hints in foreground vegetation.
+
+Best match for PDLBRD color scheme: Saddle brown, Olive, Teal, Burgundy

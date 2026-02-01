@@ -1,0 +1,9 @@
+Source: Unsplash
+URL: https://unsplash.com/photos/photo-1660861971384-758d7af0dd6a
+Direct: https://images.unsplash.com/photo-1660861971384-758d7af0dd6a
+License: Unsplash License (free for commercial use, no attribution required)
+
+Description: Brazilian fazenda (farm) at sunset with araucaria (Parana pine) trees, rustic cabin, and grazing cattle in southern Brazil.
+Earth tones present: Golden/amber sunset tones, olive-brown grasses, teal-green araucaria trees, brown cabin.
+
+Note: Contains small grazing cattle in foreground. Distinctively Brazilian with iconic araucaria trees.

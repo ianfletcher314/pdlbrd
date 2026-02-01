@@ -1,0 +1,9 @@
+Source: Unsplash
+URL: https://unsplash.com/photos/photo-1557489352-30eb57f7819b
+Direct: https://images.unsplash.com/photo-1557489352-30eb57f7819b
+License: Unsplash License (free for commercial use, no attribution required)
+
+Description: Sunset scene at Chapada Diamantina with cacti and rocky outcrops, Bahia, Brazil.
+Earth tones present: Warm golden/brown rocks, olive-brown vegetation, teal sky gradient, sandy/tan ground.
+
+Distinctive Brazilian semi-arid landscape with warm sunset colors.
